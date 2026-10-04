@@ -13,6 +13,7 @@ const pool = mysql.createPool({
   queueLimit: 0,
 });
 
+<<<<<<< HEAD
 const initializeDatabase = async () => {
   try {
     const connection = await pool.getConnection();
@@ -210,5 +211,16 @@ const initializeDatabase = async () => {
 };
 
 initializeDatabase();
+=======
+(async () => {
+  try {
+    const connection = await pool.getConnection();
+    console.log('Connected to Database:', process.env.DB_NAME || 'jobhunt_db');
+    connection.release();
+  } catch (error) {
+    console.error('Database connection error:', error.message);
+  }
+})();
+>>>>>>> feature/auth-system
 
 module.exports = pool;

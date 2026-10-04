@@ -1,5 +1,6 @@
 @import "tailwindcss";
 
+<<<<<<< HEAD
 @theme {
   --color-on-primary-fixed: #1d1b19;
   --color-secondary-container: #f2dcc2;
@@ -238,4 +239,165 @@
   .fm-input:focus {
     border-color: #1c1917;
   }
+=======
+@layer base {
+  :root {
+    --font-heading-family: "Inknut Antiqua", serif;
+    --font-body-family: "Crimson Pro", serif;
+    --font-mono-family: "JetBrains Mono", monospace;
+
+    --color-bg-base: #F9F8F6;
+    --color-bg-surface: #EFE9E3;
+    --color-border: #D9CFC7;
+    --color-accent: #C9B59C;
+
+    --color-fg-main: #1c1917;
+    --color-fg-muted: #57534e;
+    --color-fg-light: #78716c;
+  }
+
+  * {
+    border-radius: 0px !important;
+  }
+
+  body {
+    font-family: var(--font-body-family);
+    background-color: var(--color-bg-base);
+    color: var(--color-fg-main);
+    letter-spacing: 0.03em;
+    line-height: 1.6;
+    overflow-x: hidden;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4,
+  .font-heading {
+    font-family: var(--font-heading-family);
+    font-weight: 500;
+    color: var(--color-fg-main);
+    letter-spacing: 0.01em;
+  }
+
+  .font-serif-body {
+    font-family: var(--font-body-family);
+  }
+
+  .font-mono-tag {
+    font-family: var(--font-mono-family);
+  }
+}
+
+.fm-card {
+  background-color: #EFE9E3;
+  border: 1px solid #D9CFC7;
+  transition: all 0.2s ease-in-out;
+}
+
+.fm-card:hover {
+  border-color: #C9B59C;
+  background-color: #F9F8F6;
+  box-shadow: 0 4px 20px -4px rgba(201, 181, 156, 0.3);
+}
+
+.fm-btn {
+  font-family: var(--font-body-family);
+  background-color: #F9F8F6;
+  color: #1c1917;
+  border: 1px solid #C9B59C;
+  padding: 0.5rem 1.25rem;
+  font-size: 0.85rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  transition: all 0.2s ease;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.fm-btn:hover {
+  background-color: #C9B59C;
+  color: #1c1917;
+  border-color: #C9B59C;
+}
+
+.fm-btn-primary {
+  background-color: #C9B59C;
+  color: #1c1917;
+  border: 1px solid #C9B59C;
+  font-weight: 700;
+}
+
+.fm-btn-primary:hover {
+  background-color: #1c1917;
+  color: #F9F8F6;
+  border-color: #1c1917;
+}
+
+
+.fm-input {
+  font-family: var(--font-mono-family);
+  background-color: #F9F8F6;
+  border: 1px solid #D9CFC7;
+  color: #1c1917;
+  padding: 0.65rem 1rem;
+  font-size: 0.85rem;
+}
+
+.fm-input-icon-left {
+  padding-left: 2.75rem !important;
+}
+
+.fm-input-icon-right {
+  padding-right: 2.75rem !important;
+}
+
+.fm-input:focus {
+  outline: none;
+  border-color: #C9B59C;
+  background-color: #ffffff;
+}
+
+.fm-input::placeholder {
+  color: #a8a29e;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+.animate-marquee {
+  display: flex;
+  width: 200%;
+  animation: marquee 30s linear infinite;
+}
+
+.animate-marquee:hover {
+  animation-play-state: paused;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #F9F8F6;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #D9CFC7;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #C9B59C;
+>>>>>>> feature/auth-system
 }
