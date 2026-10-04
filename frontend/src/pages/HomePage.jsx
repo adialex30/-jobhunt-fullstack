@@ -64,19 +64,28 @@ export default function HomePage({ onOpenPostModal, showToast }) {
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 font-mono text-xs">
               <Link
-                to="/jobs"
+                to="/opportunities?tab=jobs"
                 className="fm-btn fm-btn-primary px-7 py-3 text-[12px] flex items-center justify-center gap-2 shadow-md hover:translate-x-0.5 transition-transform"
               >
-                <span>Cari Kerja</span>
+                <Briefcase size={14} />
+                <span>Job Opportunities</span>
                 <ArrowRight size={14} />
+              </Link>
+
+              <Link
+                to="/opportunities?tab=candidates"
+                className="fm-btn px-6 py-3 text-[12px] flex items-center justify-center gap-2 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917] hover:bg-[#F9F8F6] transition-all"
+              >
+                {/* <Users size={14} className="text-[#6b5c47]" /> */}
+                <span>Candidate Bench</span>
               </Link>
 
               <button
                 type="button"
                 onClick={onOpenPostModal}
-                className="fm-btn px-6 py-3 text-[12px] flex items-center justify-center gap-2 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917] hover:bg-[#F9F8F6] transition-all"
+                className="fm-btn px-5 py-3 text-[12px] flex items-center justify-center gap-2 border-[#D9CFC7] bg-[#F9F8F6] text-[#57534e] hover:border-[#1c1917] hover:text-[#1c1917] transition-all"
               >
-                <PlusCircle size={14} className="text-[#6b5c47]" />
+                <PlusCircle size={14} />
                 <span>Pasang Lowongan</span>
               </button>
             </div>
