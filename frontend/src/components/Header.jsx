@@ -5,6 +5,7 @@ import {
   PlusCircle,
   Bell,
   User,
+  Users,
   Menu,
   X,
   ExternalLink,
@@ -93,9 +94,29 @@ export default function Header({
 
           <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 border border-[#D9CFC7] bg-[#EFE9E3] text-[10px] font-mono text-[#57534e]">
             <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-            <span>INDEX ACTIVE</span>
           </div>
         </div>
+
+        {/* Navigation Links for Opportunities & Candidates */}
+        <nav className="hidden xl:flex items-center gap-1 font-mono text-xs">
+          <button
+            type="button"
+            onClick={() => navigate('/opportunities?tab=jobs')}
+            className="px-3 py-1.5 border border-transparent hover:border-[#D9CFC7] hover:bg-[#EFE9E3] text-[#1c1917] transition-all font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5"
+          >
+            <Briefcase size={13} className="text-[#8C7A6B]" />
+            <span>Opportunities (Job Seeker)</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => navigate('/opportunities?tab=candidates')}
+            className="px-3 py-1.5 border border-transparent hover:border-[#D9CFC7] hover:bg-[#EFE9E3] text-[#1c1917] transition-all font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5"
+          >
+            <Users size={13} className="text-[#8C7A6B]" />
+            <span>Candidates (Recruiter)</span>
+          </button>
+        </nav>
 
         {/* Right Section: Notifications + Saved + Post + My Jobs + Profile (when logged in) */}
         <div className="flex items-center gap-1.5 sm:gap-3 font-mono text-xs ml-auto">
@@ -353,6 +374,32 @@ export default function Header({
       {/* Mobile Drawer (Menu & Quick Actions) */}
       {isMobileMenuOpen && (
         <div className="lg:hidden border-t border-[#D9CFC7] bg-[#F9F8F6] px-4 py-4 space-y-3 font-mono text-xs animate-in slide-in-from-top-2">
+          {/* Mobile Navigation Links */}
+          <div className="flex flex-col gap-1 pb-2 border-b border-[#D9CFC7]">
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                navigate('/opportunities?tab=jobs');
+              }}
+              className="text-left px-2 py-2 hover:bg-[#EFE9E3] font-bold text-[#1c1917] flex items-center gap-2"
+            >
+              <Briefcase size={14} className="text-[#8C7A6B]" />
+              <span>Job Opportunities (Job Seeker)</span>
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setIsMobileMenuOpen(false);
+                navigate('/opportunities?tab=candidates');
+              }}
+              className="text-left px-2 py-2 hover:bg-[#EFE9E3] font-bold text-[#1c1917] flex items-center gap-2"
+            >
+              <Users size={14} className="text-[#8C7A6B]" />
+              <span>Candidate Opportunities (Recruiter)</span>
+            </button>
+          </div>
+
           {/* Mobile Quick Actions (Post, My Jobs, Saved) */}
           <div className="grid grid-cols-2 gap-2 pt-1">
             {onOpenPostModal && (

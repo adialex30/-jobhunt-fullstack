@@ -5,6 +5,7 @@ import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import JobsCatalogPage from './pages/JobsCatalogPage';
 import JobDetailPage from './pages/JobDetailPage';
+import OpportunitiesPage from './pages/OpportunitiesPage';
 import PostJobModal from './components/PostJobModal';
 import RecruiterJobsModal from './components/RecruiterJobsModal';
 import AuraApplyModal from './components/AuraApplyModal';
@@ -175,6 +176,39 @@ function MainApp() {
                   setIsApplyModalOpen(true);
                 }}
                 onEditJob={handleOpenEditJob}
+                savedJobIds={savedJobIds}
+                onToggleBookmark={handleToggleBookmark}
+                showToast={showToast}
+              />
+            }
+          />
+
+          {/* /opportunities & /candidates: Peluang kerja untuk Job Seeker & Peluang talenta untuk Recruiter */}
+          <Route
+            path="/opportunities"
+            element={
+              <OpportunitiesPage
+                onApply={(job) => {
+                  setSelectedJobToApply(job);
+                  setIsApplyModalOpen(true);
+                }}
+                onOpenPostModal={handleOpenCreateJob}
+                savedJobIds={savedJobIds}
+                onToggleBookmark={handleToggleBookmark}
+                showToast={showToast}
+              />
+            }
+          />
+
+          <Route
+            path="/candidates"
+            element={
+              <OpportunitiesPage
+                onApply={(job) => {
+                  setSelectedJobToApply(job);
+                  setIsApplyModalOpen(true);
+                }}
+                onOpenPostModal={handleOpenCreateJob}
                 savedJobIds={savedJobIds}
                 onToggleBookmark={handleToggleBookmark}
                 showToast={showToast}
