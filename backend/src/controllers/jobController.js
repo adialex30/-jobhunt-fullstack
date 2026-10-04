@@ -1,6 +1,40 @@
 const JobModel = require('../models/jobModel');
+const { sendSuccess, sendError } = require('../utils/apiResponse');
 
 const VALID_JOB_TYPES = ['full-time', 'part-time', 'contract', 'internship'];
+
+/**
+ * Format data objek lowongan pekerjaan agar rapih & konsisten
+ */
+const formatJobData = (raw) => {
+  if (!raw) return null;
+  return {
+    id: raw.id,
+    title: raw.title,
+    company: raw.company,
+    location: raw.location || null,
+    type: raw.type,
+    description: raw.description,
+    requirements: raw.requirements || null,
+    salary_min: raw.salary_min !== undefined ? raw.salary_min : null,
+    salary_max: raw.salary_max !== undefined ? raw.salary_max : null,
+    salary: {
+      min: raw.salary_min !== undefined ? raw.salary_min : null,
+      max: raw.salary_max !== undefined ? raw.salary_max : null
+    },
+    is_active: Boolean(raw.is_active),
+    created_at: raw.created_at,
+    recruiter_id: raw.recruiter_id,
+    recruiter: {
+      id: raw.recruiter_id,
+      name: raw.recruiter_name || null,
+      email: raw.recruiter_email || null
+    },
+    // Compatibility fields
+    recruiter_name: raw.recruiter_name || null,
+    recruiter_email: raw.recruiter_email || null
+  };
+};
 
 const JobController = {
   // GET /api/jobs (Semua job aktif dengan search, filter, pagination)
@@ -25,9 +59,26 @@ const JobController = {
         location
       });
 
-      return res.status(200).json({
-        status: 'success',
-        data: result
+      const formattedJobs = result.jobs.map(formatJobData);
+
+      return sendSuccess(res, {
+        statusCode: 200,
+        message: 'Daftar lowongan pekerjaan berhasil dimuat.',
+        data: {
+          jobs: formattedJobs,
+          totalJobs: result.totalJobs,
+          totalPages: result.totalPages,
+          currentPage: result.currentPage,
+          limit: result.limit
+        },
+        pagination: {
+          currentPage: result.currentPage,
+          totalPages: result.totalPages,
+          totalJobs: result.totalJobs,
+          limit: result.limit,
+          hasNextPage: result.currentPage < result.totalPages,
+          hasPrevPage: result.currentPage > 1
+        }
       });
     } catch (error) {
       next(error);
@@ -38,8 +89,9 @@ const JobController = {
   async getJobStats(req, res, next) {
     try {
       const stats = await JobModel.getStats();
-      return res.status(200).json({
-        status: 'success',
+      return sendSuccess(res, {
+        statusCode: 200,
+        message: 'Statistik lowongan pekerjaan berhasil dimuat.',
         data: stats
       });
     } catch (error) {
@@ -52,23 +104,24 @@ const JobController = {
     try {
       const jobId = parseInt(req.params.id, 10);
       if (isNaN(jobId)) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'ID lowongan tidak valid.'
         });
       }
 
       const job = await JobModel.findById(jobId);
       if (!job) {
-        return res.status(404).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 404,
           message: 'Lowongan pekerjaan tidak ditemukan atau sudah ditutup.'
         });
       }
 
-      return res.status(200).json({
-        status: 'success',
-        data: job
+      return sendSuccess(res, {
+        statusCode: 200,
+        message: 'Detail lowongan pekerjaan berhasil dimuat.',
+        data: formatJobData(job)
       });
     } catch (error) {
       next(error);
@@ -91,29 +144,29 @@ const JobController = {
 
       // Validation
       if (!title || !title.trim()) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'Judul pekerjaan (title) wajib diisi.'
         });
       }
 
       if (!company || !company.trim()) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'Nama perusahaan (company) wajib diisi.'
         });
       }
 
       if (!type || !VALID_JOB_TYPES.includes(type.trim().toLowerCase())) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: `Tipe pekerjaan (type) tidak valid. Harus salah satu dari: ${VALID_JOB_TYPES.join(', ')}`
         });
       }
 
       if (!description || !description.trim()) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'Deskripsi lengkap pekerjaan (description) wajib diisi.'
         });
       }
@@ -122,13 +175,12 @@ const JobController = {
       const parsedSalaryMax = salary_max ? parseInt(salary_max, 10) : null;
 
       if (parsedSalaryMin && parsedSalaryMax && parsedSalaryMin > parsedSalaryMax) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'Gaji minimum tidak boleh lebih besar dari gaji maksimum.'
         });
       }
 
-      // Fallback recruiterId for local development without auth
       const recruiterId = (req.user && req.user.id) || req.body.recruiter_id || 4;
 
       const createdJobId = await JobModel.create({
@@ -146,44 +198,49 @@ const JobController = {
 
       const newJob = await JobModel.findById(createdJobId);
 
-      return res.status(201).json({
-        status: 'success',
+      return sendSuccess(res, {
+        statusCode: 201,
         message: 'Lowongan pekerjaan baru berhasil diposting!',
-        data: newJob
+        data: formatJobData(newJob)
       });
     } catch (error) {
       next(error);
     }
   },
 
-  // GET /api/jobs/mine (Daftar job milik recruiter yang login / dev fallback)
+  // GET /api/jobs/mine (Daftar job milik recruiter yang login)
   async getMyJobs(req, res, next) {
     try {
       const recruiterId = (req.user && req.user.id) || req.query.recruiter_id || 4;
       let myJobs = await JobModel.findByRecruiter(recruiterId);
 
-      // In development mode, if recruiter has no jobs yet, show all active jobs
       if (!myJobs || myJobs.length === 0) {
         const allRes = await JobModel.findAll({ page: 1, limit: 50 });
         myJobs = allRes.jobs;
       }
 
-      return res.status(200).json({
-        status: 'success',
-        data: myJobs
+      const formatted = myJobs.map(formatJobData);
+
+      return sendSuccess(res, {
+        statusCode: 200,
+        message: 'Daftar lowongan pekerjaan Anda berhasil dimuat.',
+        data: formatted,
+        meta: {
+          total: formatted.length
+        }
       });
     } catch (error) {
       next(error);
     }
   },
 
-  // PUT /api/jobs/:id (Update job - auth bypassed for localhost)
+  // PUT /api/jobs/:id (Update job)
   async updateJob(req, res, next) {
     try {
       const jobId = parseInt(req.params.id, 10);
       if (isNaN(jobId)) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'ID lowongan tidak valid.'
         });
       }
@@ -191,19 +248,18 @@ const JobController = {
       const existingJob = await JobModel.findById(jobId);
 
       if (!existingJob) {
-        return res.status(404).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 404,
           message: 'Lowongan pekerjaan tidak ditemukan.'
         });
       }
 
-      // Use job's actual recruiter_id so update always succeeds in dev bypass mode
       const recruiterId = (req.user && req.user.id) || existingJob.recruiter_id;
 
       const { type, salary_min, salary_max } = req.body;
       if (type && !VALID_JOB_TYPES.includes(type.trim().toLowerCase())) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: `Tipe pekerjaan tidak valid. Harus salah satu dari: ${VALID_JOB_TYPES.join(', ')}`
         });
       }
@@ -212,8 +268,8 @@ const JobController = {
       const parsedMax = salary_max !== undefined ? (salary_max ? parseInt(salary_max, 10) : null) : existingJob.salary_max;
 
       if (parsedMin && parsedMax && parsedMin > parsedMax) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'Gaji minimum tidak boleh lebih besar dari gaji maksimum.'
         });
       }
@@ -225,31 +281,31 @@ const JobController = {
 
       const success = await JobModel.update(jobId, recruiterId, updateData);
       if (!success) {
-        return res.status(400).json({
-          status: 'error',
-          message: 'Tidak ada perubahan yang diterapkan.'
+        return sendError(res, {
+          statusCode: 400,
+          message: 'Tidak ada perubahan yang diterapkan pada lowongan.'
         });
       }
 
       const updatedJob = await JobModel.findById(jobId);
 
-      return res.status(200).json({
-        status: 'success',
+      return sendSuccess(res, {
+        statusCode: 200,
         message: 'Lowongan pekerjaan berhasil diperbarui!',
-        data: updatedJob
+        data: formatJobData(updatedJob)
       });
     } catch (error) {
       next(error);
     }
   },
 
-  // DELETE /api/jobs/:id (Hapus job - auth bypassed for localhost)
+  // DELETE /api/jobs/:id (Hapus job)
   async deleteJob(req, res, next) {
     try {
       const jobId = parseInt(req.params.id, 10);
       if (isNaN(jobId)) {
-        return res.status(400).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 400,
           message: 'ID lowongan tidak valid.'
         });
       }
@@ -257,19 +313,18 @@ const JobController = {
       const existingJob = await JobModel.findById(jobId);
 
       if (!existingJob) {
-        return res.status(404).json({
-          status: 'error',
+        return sendError(res, {
+          statusCode: 404,
           message: 'Lowongan pekerjaan tidak ditemukan.'
         });
       }
 
-      // Use job's actual recruiter_id so delete always succeeds in dev bypass mode
       const recruiterId = (req.user && req.user.id) || existingJob.recruiter_id;
 
       await JobModel.delete(jobId, recruiterId);
 
-      return res.status(200).json({
-        status: 'success',
+      return sendSuccess(res, {
+        statusCode: 200,
         message: 'Lowongan pekerjaan berhasil dihapus.'
       });
     } catch (error) {

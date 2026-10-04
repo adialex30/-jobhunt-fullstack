@@ -103,7 +103,7 @@ export default function PostJobModal({ isOpen, onClose, onJobCreated, onJobUpdat
         <div className="flex items-center gap-2 text-[#6b5c47] mb-1 pr-6">
           {isEditMode ? <Edit3 size={16} /> : <Briefcase size={16} />}
           <span className="font-mono text-[10px] sm:text-[11px] uppercase tracking-widest font-semibold truncate">
-            {isEditMode ? 'Recruiter Edit Portal • PUT /api/jobs/:id' : 'Recruiter Dispatch Portal • POST /api/jobs'}
+            {isEditMode ? 'Recruiter Edit Portal' : 'Recruiter Dispatch Portal'}
           </span>
         </div>
 

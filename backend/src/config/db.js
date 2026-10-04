@@ -52,6 +52,23 @@ const initializeDatabase = async () => {
       ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
     `);
 
+    // Create applications table per specification
+    await connection.query(`
+      CREATE TABLE IF NOT EXISTS applications (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        job_id INT NOT NULL,
+        applicant_id INT NOT NULL,
+        cover_letter TEXT,
+        status ENUM('pending', 'reviewed', 'rejected') DEFAULT 'pending',
+        applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_job (job_id),
+        INDEX idx_applicant (applicant_id),
+        INDEX idx_status (status),
+        FOREIGN KEY (job_id) REFERENCES jobs(id) ON DELETE CASCADE,
+        FOREIGN KEY (applicant_id) REFERENCES users(id) ON DELETE CASCADE
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+    `);
+
     // Check if jobs table has initial seed data
     const [existingJobs] = await connection.query('SELECT COUNT(*) as count FROM jobs');
     if (existingJobs[0].count === 0) {
@@ -140,6 +157,50 @@ const initializeDatabase = async () => {
       `;
       await connection.query(insertJobsQuery, [sampleJobs]);
       console.log('Seeded sample jobs into jobs table successfully.');
+    }
+
+    // Check if applications table has initial seed data
+    const [existingApps] = await connection.query('SELECT COUNT(*) as count FROM applications');
+    if (existingApps[0].count === 0) {
+      // Find a job seeker user id (or fallback to id 1) and existing job ids
+      const [seekers] = await connection.query("SELECT id FROM users WHERE role = 'job_seeker' LIMIT 2");
+      const [jobs] = await connection.query("SELECT id FROM jobs LIMIT 3");
+
+      if (seekers.length > 0 && jobs.length > 0) {
+        const seeker1Id = seekers[0].id;
+        const seeker2Id = seekers.length > 1 ? seekers[1].id : seekers[0].id;
+
+        const sampleApplications = [
+          [
+            jobs[0].id,
+            seeker1Id,
+            'Saya memiliki pengalaman lebih dari 4 tahun dalam desain antarmuka dan interaksi spatial computing. Bersemangat untuk bergabung dengan tim!',
+            'pending'
+          ],
+          [
+            jobs[1].id,
+            seeker2Id,
+            'Portofolio brand identity dan narrative design saya terlampir. Sangat tertarik dengan visi industrial climate platform.',
+            'reviewed'
+          ]
+        ];
+
+        if (jobs.length > 2) {
+          sampleApplications.push([
+            jobs[2].id,
+            seeker1Id,
+            'Memiliki ketertarikan mendalam dalam arsitektur AI dan WebGL. Siap mengikuti tahap wawancara.',
+            'rejected'
+          ]);
+        }
+
+        const insertAppsQuery = `
+          INSERT INTO applications (job_id, applicant_id, cover_letter, status)
+          VALUES ?
+        `;
+        await connection.query(insertAppsQuery, [sampleApplications]);
+        console.log('Seeded sample applications into applications table successfully.');
+      }
     }
 
     connection.release();
