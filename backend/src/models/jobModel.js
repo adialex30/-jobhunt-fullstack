@@ -90,7 +90,8 @@ const JobModel = {
         jobs.is_active,
         jobs.created_at,
         users.name as recruiter_name,
-        users.email as recruiter_email
+        users.email as recruiter_email,
+        (SELECT COUNT(*) FROM applications WHERE applications.job_id = jobs.id) as total_applicants
       FROM jobs
       LEFT JOIN users ON jobs.recruiter_id = users.id
       ${whereClause}
@@ -128,7 +129,8 @@ const JobModel = {
         jobs.is_active,
         jobs.created_at,
         users.name as recruiter_name,
-        users.email as recruiter_email
+        users.email as recruiter_email,
+        (SELECT COUNT(*) FROM applications WHERE applications.job_id = jobs.id) as total_applicants
       FROM jobs
       LEFT JOIN users ON jobs.recruiter_id = users.id
       WHERE jobs.id = ?
@@ -153,7 +155,8 @@ const JobModel = {
         jobs.is_active,
         jobs.created_at,
         users.name as recruiter_name,
-        users.email as recruiter_email
+        users.email as recruiter_email,
+        (SELECT COUNT(*) FROM applications WHERE applications.job_id = jobs.id) as total_applicants
       FROM jobs
       LEFT JOIN users ON jobs.recruiter_id = users.id
       WHERE jobs.recruiter_id = ?

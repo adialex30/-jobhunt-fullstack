@@ -1,7 +1,7 @@
 const DEFAULT_API = 'http://127.0.0.1:5000/api';
 
 const getBaseUrl = () => {
-  if (import.meta.env.VITE_API_URL) {
+  if (typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_URL) {
     return import.meta.env.VITE_API_URL;
   }
   if (typeof window !== 'undefined') {
@@ -10,21 +10,18 @@ const getBaseUrl = () => {
   return DEFAULT_API;
 };
 
-const DEMO_RECRUITER_TOKEN = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwiZW1haWwiOiJyZWNydWl0ZXJzQGV4YW1wbGUuY29tIiwicm9sZSI6InJlY3J1aXRlciIsIm5hbWUiOiJyZWNydWl0ZXJzIiwiaWF0IjoxNzkxMDI2MzM5LCJleHAiOjE3OTM2MTgzMzl9.evqSRBcPbK9WHzjWgEqo8iXdoBZ-4s-cjeAq9tJGopc';
-
 // Helper to retrieve auth token from localStorage if not explicitly passed
 const getAuthToken = (token) => {
   if (token) return token;
   if (typeof window !== 'undefined') {
-    const stored = localStorage.getItem('token') || localStorage.getItem('jwt');
-    if (stored) return stored;
+    return localStorage.getItem('token') || localStorage.getItem('jwt');
   }
-  return DEMO_RECRUITER_TOKEN;
+  return null;
 };
 
 async function requestWithFallback(endpoint, options = {}) {
   const baseUrl = getBaseUrl();
-  let url = `${baseUrl}${endpoint}`;
+  const url = `${baseUrl}${endpoint}`;
 
   try {
     const res = await fetch(url, options);
@@ -44,7 +41,7 @@ async function requestWithFallback(endpoint, options = {}) {
 }
 
 export const jobService = {
-  // GET /api/jobs (Semua job aktif: filter, search, pagination)
+  // GET /api/jobs (Semua job aktif: filter, search, pagination, sorting)
   async getJobs({ page = 1, limit = 6, keyword = '', type = '', location = '' } = {}) {
     const queryParams = new URLSearchParams();
     if (page) queryParams.append('page', page);
@@ -76,7 +73,7 @@ export const jobService = {
   },
 
   // GET /api/jobs/mine (Daftar job milik recruiter yang login)
-  async getMyJobs(token) {
+  async getMyJobs(token = null) {
     const authToken = getAuthToken(token);
     const endpoint = `/jobs/mine`;
     const response = await requestWithFallback(endpoint, {
@@ -96,7 +93,7 @@ export const jobService = {
   },
 
   // POST /api/jobs (Posting job baru - Recruiter)
-  async createJob(jobData, token) {
+  async createJob(jobData, token = null) {
     const authToken = getAuthToken(token);
     const endpoint = `/jobs`;
     const response = await requestWithFallback(endpoint, {
@@ -117,7 +114,7 @@ export const jobService = {
   },
 
   // PUT /api/jobs/:id (Update job - hanya milik sendiri)
-  async updateJob(id, updateData, token) {
+  async updateJob(id, updateData, token = null) {
     const authToken = getAuthToken(token);
     const endpoint = `/jobs/${id}`;
     const response = await requestWithFallback(endpoint, {
@@ -138,7 +135,7 @@ export const jobService = {
   },
 
   // DELETE /api/jobs/:id (Hapus job - hanya milik sendiri)
-  async deleteJob(id, token) {
+  async deleteJob(id, token = null) {
     const authToken = getAuthToken(token);
     const endpoint = `/jobs/${id}`;
     const response = await requestWithFallback(endpoint, {
@@ -157,15 +154,10 @@ export const jobService = {
     return result;
   },
 
-  // GET /api/jobs/stats (Ringkasan statistik)
+  // GET /api/jobs/stats (Statistik umum jobs)
   async getJobStats() {
-    const endpoint = `/jobs/stats`;
-    const response = await requestWithFallback(endpoint);
-
-    if (!response.ok) {
-      throw new Error(`Gagal mengambil statistik jobs`);
-    }
-
+    const response = await requestWithFallback('/jobs/stats');
+    if (!response.ok) return null;
     return response.json();
   }
 };

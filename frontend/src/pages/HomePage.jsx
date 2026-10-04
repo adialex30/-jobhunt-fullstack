@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ArrowRight, Briefcase, Building2, MapPin, Sparkles, PlusCircle, CheckCircle2, TrendingUp } from 'lucide-react';
+import { ArrowRight, Briefcase, Building2, MapPin, Sparkles, PlusCircle, CheckCircle2, TrendingUp, LayoutDashboard } from 'lucide-react';
 import { jobService } from '../services/jobService';
+import { useAuth } from '../context/AuthContext';
 
 export default function HomePage({ onOpenPostModal, showToast }) {
+  const { isRecruiter } = useAuth();
   const [stats, setStats] = useState({
     totalJobs: 0,
     totalCompanies: 0,
@@ -63,22 +65,31 @@ export default function HomePage({ onOpenPostModal, showToast }) {
 
             {/* CTA Buttons */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 font-mono text-xs">
-              <Link
-                to="/jobs"
-                className="fm-btn fm-btn-primary px-7 py-3 text-[12px] flex items-center justify-center gap-2 shadow-md hover:translate-x-0.5 transition-transform"
-              >
-                <span>Cari Kerja</span>
-                <ArrowRight size={14} />
-              </Link>
+              {!isRecruiter ? (
+                <Link
+                  to="/jobs"
+                  className="fm-btn fm-btn-primary px-7 py-3 text-[12px] flex items-center justify-center gap-2 shadow-md hover:translate-x-0.5 transition-transform"
+                >
+                  <span>Cari Kerja</span>
+                  <ArrowRight size={14} />
+                </Link>
+              ) : (
+                <Link
+                  to="/dashboard"
+                  className="fm-btn fm-btn-primary px-7 py-3 text-[12px] flex items-center justify-center gap-2 shadow-md hover:translate-x-0.5 transition-transform"
+                >
+                  <LayoutDashboard size={14} />
+                  <span>Dashboard Recruiter</span>
+                </Link>
+              )}
 
-              <button
-                type="button"
-                onClick={onOpenPostModal}
+              <Link
+                to="/jobs/create"
                 className="fm-btn px-6 py-3 text-[12px] flex items-center justify-center gap-2 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917] hover:bg-[#F9F8F6] transition-all"
               >
                 <PlusCircle size={14} className="text-[#6b5c47]" />
                 <span>Pasang Lowongan</span>
-              </button>
+              </Link>
             </div>
           </div>
         </div>
@@ -144,13 +155,23 @@ export default function HomePage({ onOpenPostModal, showToast }) {
               Lowongan Terpilih Pekan Ini
             </h2>
           </div>
-          <Link
-            to="/jobs"
-            className="font-mono text-xs font-semibold text-[#1c1917] hover:text-[#6b5c47] flex items-center gap-1.5 transition-colors self-start sm:self-auto"
-          >
-            <span>Lihat Semua Katalog ({stats.totalJobs || '24+'})</span>
-            <ArrowRight size={14} />
-          </Link>
+          {!isRecruiter ? (
+            <Link
+              to="/jobs"
+              className="font-mono text-xs font-semibold text-[#1c1917] hover:text-[#6b5c47] flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+            >
+              <span>Lihat Semua Katalog ({stats.totalJobs || '24+'})</span>
+              <ArrowRight size={14} />
+            </Link>
+          ) : (
+            <Link
+              to="/dashboard"
+              className="font-mono text-xs font-semibold text-[#1c1917] hover:text-[#6b5c47] flex items-center gap-1.5 transition-colors self-start sm:self-auto"
+            >
+              <span>Kelola Lowongan di Dashboard</span>
+              <ArrowRight size={14} />
+            </Link>
+          )}
         </div>
 
         {/* Jobs Grid: 1 col on mobile, 2 col on tablet (sm/md), 3 col on desktop (lg+) */}

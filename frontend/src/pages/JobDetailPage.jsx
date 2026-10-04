@@ -1,11 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Building2, MapPin, Briefcase, Calendar, DollarSign, Send, CheckCircle2, Bookmark, Share2, Edit2, Trash2 } from 'lucide-react';
+import { ArrowLeft, Building2, MapPin, Briefcase, Calendar, DollarSign, Send, CheckCircle2, Bookmark, Share2, Edit2, Trash2, Users } from 'lucide-react';
 import { jobService } from '../services/jobService';
+import { useAuth } from '../context/AuthContext';
 
 export default function JobDetailPage({ onApply, onEditJob, savedJobIds = [], onToggleBookmark, showToast }) {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user, isLoggedIn, isJobSeeker, isRecruiter } = useAuth();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -43,6 +45,22 @@ export default function JobDetailPage({ onApply, onEditJob, savedJobIds = [], on
   };
 
   const isSaved = job ? savedJobIds.includes(String(job.id)) : false;
+  const isOwner = Boolean(user && isRecruiter && job && user.id === job.recruiter_id);
+
+  const handleApplyClick = () => {
+    if (!isLoggedIn) {
+      if (showToast) showToast('Silakan login terlebih dahulu untuk mengajukan lamaran.');
+      navigate('/login', { state: { from: `/jobs/${id}` } });
+      return;
+    }
+    if (isRecruiter) {
+      if (showToast) showToast('Akun Recruiter tidak dapat melamar pekerjaan. Silakan gunakan akun Job Seeker.');
+      return;
+    }
+    if (onApply) {
+      onApply(job);
+    }
+  };
 
   if (loading) {
     return (
@@ -93,16 +111,22 @@ export default function JobDetailPage({ onApply, onEditJob, savedJobIds = [], on
           <span>Kembali ke Katalog Lowongan</span>
         </Link>
 
-        {onEditJob && (
-          <div className="flex items-center gap-2 self-start sm:self-auto">
-            <button
-              type="button"
-              onClick={() => onEditJob(job)}
+        {isOwner && (
+          <div className="flex items-center gap-2 self-start sm:self-auto flex-wrap">
+            <Link
+              to={`/jobs/${job.id}/applicants`}
+              className="fm-btn px-3 py-1.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917] flex items-center gap-1.5 text-xs"
+            >
+              <Users size={12} className="text-[#6b5c47]" />
+              <span>Lihat Pelamar</span>
+            </Link>
+            <Link
+              to={`/jobs/${job.id}/edit`}
               className="fm-btn px-3 py-1.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917] flex items-center gap-1.5 text-xs"
             >
               <Edit2 size={12} />
               <span>Edit (PUT)</span>
-            </button>
+            </Link>
             <button
               type="button"
               onClick={handleDeleteJob}
@@ -151,14 +175,16 @@ export default function JobDetailPage({ onApply, onEditJob, savedJobIds = [], on
 
           {/* Action CTAs */}
           <div className="flex items-center gap-2 sm:gap-3 w-full lg:w-auto shrink-0 pt-2 lg:pt-0">
-            <button
-              type="button"
-              onClick={(e) => onToggleBookmark && onToggleBookmark(e, String(job.id))}
-              className="fm-btn p-2.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917] shrink-0"
-              aria-label="Simpan posisi"
-            >
-              <Bookmark size={16} className={isSaved ? 'fill-[#C9B59C] text-[#6b5c47]' : ''} />
-            </button>
+            {!isRecruiter && (
+              <button
+                type="button"
+                onClick={(e) => onToggleBookmark && onToggleBookmark(e, String(job.id))}
+                className="fm-btn p-2.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917] shrink-0"
+                aria-label="Simpan posisi"
+              >
+                <Bookmark size={16} className={isSaved ? 'fill-[#C9B59C] text-[#6b5c47]' : ''} />
+              </button>
+            )}
 
             <button
               type="button"
@@ -174,14 +200,16 @@ export default function JobDetailPage({ onApply, onEditJob, savedJobIds = [], on
               <Share2 size={16} />
             </button>
 
-            <button
-              type="button"
-              onClick={() => onApply && onApply(job)}
-              className="fm-btn fm-btn-primary px-5 sm:px-6 py-2.5 text-xs flex-1 lg:flex-initial flex items-center justify-center gap-2 shadow-md hover:translate-x-0.5 transition-transform"
-            >
-              <Send size={14} />
-              <span>Lamar Sekarang</span>
-            </button>
+            {!isRecruiter && (
+              <button
+                type="button"
+                onClick={handleApplyClick}
+                className="fm-btn fm-btn-primary px-5 sm:px-6 py-2.5 text-xs flex-1 lg:flex-initial flex items-center justify-center gap-2 shadow-md hover:translate-x-0.5 transition-transform"
+              >
+                <Send size={14} />
+                <span>Lamar Sekarang</span>
+              </button>
+            )}
           </div>
         </div>
 
@@ -214,32 +242,11 @@ export default function JobDetailPage({ onApply, onEditJob, savedJobIds = [], on
             <div className="flex items-center gap-2">
               <CheckCircle2 size={16} className="text-[#6b5c47]" />
               <span>
-                Dipublikasikan oleh <strong>{job.recruiter_name || 'Verified Recruiter'}</strong> ({job.recruiter_email || 'partner@forcemajeure.bzh'})
+                Dipublikasikan oleh <strong>{job.recruiter_name || 'Verified Recruiter'}</strong>
               </span>
             </div>
             <span>Status: Lowongan Masih Aktif</span>
           </div>
-        </div>
-
-        {/* Sticky/Bottom Apply Bar */}
-        <div className="mt-6 pt-6 border-t border-[#D9CFC7] flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-4 bg-[#EFE9E3] p-4 sm:p-5">
-          <div>
-            <span className="text-[11px] text-[#78716c] uppercase tracking-wider block">
-              Tertarik dengan posisi ini?
-            </span>
-            <span className="font-heading font-bold text-sm text-[#1c1917]">
-              {job.title} di {job.company}
-            </span>
-          </div>
-
-          <button
-            type="button"
-            onClick={() => onApply && onApply(job)}
-            className="w-full sm:w-auto fm-btn fm-btn-primary px-8 py-3 text-xs flex items-center justify-center gap-2 shadow-md"
-          >
-            <Send size={14} />
-            <span>Lamar Sekarang</span>
-          </button>
         </div>
       </article>
     </div>

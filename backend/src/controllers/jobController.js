@@ -30,6 +30,9 @@ const formatJobData = (raw) => {
       name: raw.recruiter_name || null,
       email: raw.recruiter_email || null
     },
+    // Total pelamar
+    total_applicants: raw.total_applicants !== undefined ? parseInt(raw.total_applicants, 10) : 0,
+    applicants_count: raw.total_applicants !== undefined ? parseInt(raw.total_applicants, 10) : 0,
     // Compatibility fields
     recruiter_name: raw.recruiter_name || null,
     recruiter_email: raw.recruiter_email || null
@@ -181,7 +184,7 @@ const JobController = {
         });
       }
 
-      const recruiterId = (req.user && req.user.id) || req.body.recruiter_id || 4;
+      const recruiterId = req.user.id;
 
       const createdJobId = await JobModel.create({
         recruiter_id: recruiterId,
@@ -211,14 +214,8 @@ const JobController = {
   // GET /api/jobs/mine (Daftar job milik recruiter yang login)
   async getMyJobs(req, res, next) {
     try {
-      const recruiterId = (req.user && req.user.id) || req.query.recruiter_id || 4;
-      let myJobs = await JobModel.findByRecruiter(recruiterId);
-
-      if (!myJobs || myJobs.length === 0) {
-        const allRes = await JobModel.findAll({ page: 1, limit: 50 });
-        myJobs = allRes.jobs;
-      }
-
+      const recruiterId = req.user.id;
+      const myJobs = await JobModel.findByRecruiter(recruiterId);
       const formatted = myJobs.map(formatJobData);
 
       return sendSuccess(res, {
@@ -234,7 +231,7 @@ const JobController = {
     }
   },
 
-  // PUT /api/jobs/:id (Update job)
+  // PUT /api/jobs/:id (Update job - hanya milik sendiri)
   async updateJob(req, res, next) {
     try {
       const jobId = parseInt(req.params.id, 10);
@@ -254,7 +251,15 @@ const JobController = {
         });
       }
 
-      const recruiterId = (req.user && req.user.id) || existingJob.recruiter_id;
+      // Check ownership
+      if (existingJob.recruiter_id !== req.user.id) {
+        return sendError(res, {
+          statusCode: 403,
+          message: 'Akses terlarang! Anda hanya dapat mengubah lowongan pekerjaan milik sendiri.'
+        });
+      }
+
+      const recruiterId = req.user.id;
 
       const { type, salary_min, salary_max } = req.body;
       if (type && !VALID_JOB_TYPES.includes(type.trim().toLowerCase())) {
@@ -319,8 +324,15 @@ const JobController = {
         });
       }
 
-      const recruiterId = (req.user && req.user.id) || existingJob.recruiter_id;
+      // Check ownership
+      if (existingJob.recruiter_id !== req.user.id) {
+        return sendError(res, {
+          statusCode: 403,
+          message: 'Akses terlarang! Anda hanya dapat menghapus lowongan pekerjaan milik sendiri.'
+        });
+      }
 
+      const recruiterId = req.user.id;
       await JobModel.delete(jobId, recruiterId);
 
       return sendSuccess(res, {

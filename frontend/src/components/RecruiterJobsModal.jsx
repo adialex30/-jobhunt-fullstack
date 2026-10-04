@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { X, Briefcase, Plus, Edit2, Trash2, ExternalLink, RefreshCw, AlertCircle } from 'lucide-react';
+import { X, Briefcase, Plus, Edit2, Trash2, ExternalLink, RefreshCw, AlertCircle, Users } from 'lucide-react';
 import { jobService } from '../services/jobService';
 
 export default function RecruiterJobsModal({
@@ -157,6 +157,19 @@ export default function RecruiterJobsModal({
 
                   {/* Actions */}
                   <div className="flex flex-wrap sm:flex-nowrap items-center gap-2 shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 border-[#D9CFC7] w-full sm:w-auto">
+                    <Link
+                      to={`/jobs/${job.id}/applicants`}
+                      onClick={onClose}
+                      className="fm-btn px-2.5 py-1.5 border-[#D9CFC7] bg-[#F9F8F6] text-[#1c1917] hover:border-[#1c1917] flex items-center justify-center gap-1.5 flex-1 sm:flex-initial text-xs font-bold"
+                      title="Lihat Daftar Pelamar"
+                    >
+                      <Users size={13} className="text-[#6b5c47]" />
+                      <span>Pelamar</span>
+                      <span className="px-1.5 py-0.2 bg-[#1c1917] text-[#F9F8F6] text-[10px] font-mono font-bold">
+                        {job.total_applicants !== undefined ? job.total_applicants : 0}
+                      </span>
+                    </Link>
+
                     <Link
                       to={`/jobs/${job.id}`}
                       onClick={onClose}

@@ -5,6 +5,16 @@ import Footer from './components/Footer';
 import HomePage from './pages/HomePage';
 import JobsCatalogPage from './pages/JobsCatalogPage';
 import JobDetailPage from './pages/JobDetailPage';
+import LoginPage from './pages/LoginPage';
+import RegisterPage from './pages/RegisterPage';
+import ApplicationsPage from './pages/ApplicationsPage';
+import ProfilePage from './pages/ProfilePage';
+import RecruiterDashboardPage from './pages/RecruiterDashboardPage';
+import CreateJobPage from './pages/CreateJobPage';
+import EditJobPage from './pages/EditJobPage';
+import JobApplicantsPage from './pages/JobApplicantsPage';
+import ProtectedRoute from './components/ProtectedRoute';
+import { AuthProvider } from './context/AuthContext';
 import PostJobModal from './components/PostJobModal';
 import RecruiterJobsModal from './components/RecruiterJobsModal';
 import AuraApplyModal from './components/AuraApplyModal';
@@ -50,19 +60,6 @@ class ErrorBoundary extends React.Component {
 }
 
 function MainApp() {
-  const location = useLocation();
-  const [isLoggedIn, setIsLoggedIn] = useState(true);
-  const [activeNav, setActiveNav] = useState(() => {
-    try {
-      if (location && location.pathname && location.pathname.startsWith('/jobs')) return 'curated-roles';
-    } catch {
-      // fallback
-    }
-    return 'discover';
-  });
-  const [searchQuery, setSearchQuery] = useState('');
-
-  // Bookmarked Jobs
   const [savedJobIds, setSavedJobIds] = useState(['1', '2']);
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
@@ -102,7 +99,6 @@ function MainApp() {
     });
   };
 
-  // Convert saved job IDs to mock objects for BookmarksModal preview if needed
   const savedJobsObjects = savedJobIds.map((id) => {
     const existing = AURA_JOBS.find((j) => j.id === id);
     if (existing) return existing;
@@ -129,20 +125,16 @@ function MainApp() {
 
       {/* Sticky Header */}
       <Header
-        isLoggedIn={isLoggedIn}
-        onLogin={() => setIsLoggedIn(true)}
-        onLogout={() => setIsLoggedIn(false)}
         savedJobsCount={savedJobIds.length}
         onOpenSaved={() => setIsSavedModalOpen(true)}
-        onOpenPostModal={handleOpenCreateJob}
-        onOpenManageJobs={() => setIsRecruiterModalOpen(true)}
         showToast={showToast}
       />
 
       {/* Application Main Router Area */}
       <main className="w-full bg-[#faf9f7] min-h-[calc(100vh-140px)] flex flex-col flex-1">
         <Routes>
-          {/* / (Home): Hero section, ringkasan total jobs, CTA 'Cari Kerja' dan 'Pasang Lowongan' */}
+          {/* ================= PUBLIC ROUTES ================= */}
+          {/* 1. / (Home) */}
           <Route
             path="/"
             element={
@@ -153,7 +145,7 @@ function MainApp() {
             }
           />
 
-          {/* /jobs: Katalog semua lowongan aktif dengan search, filter, dan pagination */}
+          {/* 2. /jobs (Katalog Lowongan) */}
           <Route
             path="/jobs"
             element={
@@ -165,7 +157,7 @@ function MainApp() {
             }
           />
 
-          {/* /jobs/:id: Detail lowongan — deskripsi, perusahaan, tipe, tombol 'Lamar Sekarang' */}
+          {/* 3. /jobs/:id (Detail Lowongan) */}
           <Route
             path="/jobs/:id"
             element={
@@ -182,6 +174,80 @@ function MainApp() {
             }
           />
 
+          {/* 4. /login */}
+          <Route
+            path="/login"
+            element={<LoginPage showToast={showToast} />}
+          />
+
+          {/* 5. /register */}
+          <Route
+            path="/register"
+            element={<RegisterPage showToast={showToast} />}
+          />
+
+          {/* ================= JOB SEEKER PROTECTED ROUTES ================= */}
+          {/* 1. /applications (Riwayat Lamaran) */}
+          <Route
+            path="/applications"
+            element={
+              <ProtectedRoute allowedRoles={['job_seeker']}>
+                <ApplicationsPage showToast={showToast} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 2. /profile (Profil User) */}
+          <Route
+            path="/profile"
+            element={
+              <ProtectedRoute>
+                <ProfilePage showToast={showToast} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* ================= RECRUITER PROTECTED ROUTES ================= */}
+          {/* 1. /dashboard (Dashboard Recruiter) */}
+          <Route
+            path="/dashboard"
+            element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <RecruiterDashboardPage showToast={showToast} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 2. /jobs/create (Form Posting Lowongan Baru) */}
+          <Route
+            path="/jobs/create"
+            element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <CreateJobPage showToast={showToast} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 3. /jobs/:id/edit (Form Edit Lowongan) */}
+          <Route
+            path="/jobs/:id/edit"
+            element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <EditJobPage showToast={showToast} />
+              </ProtectedRoute>
+            }
+          />
+
+          {/* 4. /jobs/:id/applicants (Tabel Pelamar & Update Status) */}
+          <Route
+            path="/jobs/:id/applicants"
+            element={
+              <ProtectedRoute allowedRoles={['recruiter']}>
+                <JobApplicantsPage showToast={showToast} />
+              </ProtectedRoute>
+            }
+          />
+
           {/* Fallback redirect */}
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
@@ -190,7 +256,7 @@ function MainApp() {
       {/* Footer */}
       <Footer showToast={showToast} />
 
-      {/* Modal Pasang / Edit Lowongan (Recruiter: POST & PUT) */}
+      {/* Modal Pasang / Edit Lowongan (Quick modal option) */}
       <PostJobModal
         isOpen={isPostModalOpen}
         jobToEdit={jobToEdit}
@@ -207,7 +273,7 @@ function MainApp() {
         showToast={showToast}
       />
 
-      {/* Modal Kelola Lowongan Recruiter (GET /api/jobs/mine & DELETE) */}
+      {/* Modal Kelola Lowongan Recruiter */}
       <RecruiterJobsModal
         isOpen={isRecruiterModalOpen}
         onClose={() => setIsRecruiterModalOpen(false)}
@@ -230,7 +296,7 @@ function MainApp() {
         <AuraBookmarksModal
           savedJobs={savedJobsObjects}
           onClose={() => setIsSavedModalOpen(false)}
-          onSelectJob={(j) => setIsSavedModalOpen(false)}
+          onSelectJob={() => setIsSavedModalOpen(false)}
           onRemoveBookmark={(id) => handleToggleBookmark({ stopPropagation: () => {} }, id)}
         />
       )}
@@ -241,7 +307,9 @@ function MainApp() {
 export default function App() {
   return (
     <ErrorBoundary>
-      <MainApp />
+      <AuthProvider>
+        <MainApp />
+      </AuthProvider>
     </ErrorBoundary>
   );
 }

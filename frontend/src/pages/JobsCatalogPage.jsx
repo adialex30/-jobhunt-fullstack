@@ -1,14 +1,34 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Briefcase, Filter, ChevronLeft, ChevronRight, Bookmark, ArrowRight } from 'lucide-react';
+import { Search, MapPin, Briefcase, Filter, ChevronLeft, ChevronRight, Bookmark, ArrowRight, ArrowUpDown } from 'lucide-react';
 import { jobService } from '../services/jobService';
+import { useAuth } from '../context/AuthContext';
+
+const JOB_TYPES = [
+  { value: 'all', label: 'Semua Tipe' },
+  { value: 'full-time', label: 'Full-time' },
+  { value: 'part-time', label: 'Part-time' },
+  { value: 'contract', label: 'Contract' },
+  { value: 'internship', label: 'Internship' }
+];
+
+const LOCATIONS = [
+  { value: 'all', label: 'Semua Lokasi' },
+  { value: 'Remote', label: 'Remote (Worldwide)' },
+  { value: 'Jakarta', label: 'Jakarta' },
+  { value: 'San Francisco', label: 'San Francisco' },
+  { value: 'New York', label: 'New York' },
+  { value: 'London', label: 'London' }
+];
 
 export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, showToast }) {
+  const { isRecruiter } = useAuth();
   const [searchParams, setSearchParams] = useSearchParams();
 
   const [keyword, setKeyword] = useState(searchParams.get('keyword') || '');
   const [selectedType, setSelectedType] = useState(searchParams.get('type') || 'all');
   const [selectedLocation, setSelectedLocation] = useState(searchParams.get('location') || 'all');
+  const [sortBy, setSortBy] = useState('newest'); // 'newest' | 'applicants'
   const [currentPage, setCurrentPage] = useState(parseInt(searchParams.get('page') || '1', 10));
 
   const [jobsData, setJobsData] = useState({
@@ -19,20 +39,37 @@ export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, sh
   });
   const [isLoading, setIsLoading] = useState(true);
 
-  // Sync with URL query parameters (e.g. from Header search)
+  // Debounced search query (300ms)
+  const debounceTimerRef = useRef(null);
+  const [debouncedKeyword, setDebouncedKeyword] = useState(keyword);
+
+  const handleKeywordChange = (e) => {
+    const val = e.target.value;
+    setKeyword(val);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => {
+      setDebouncedKeyword(val);
+      setCurrentPage(1);
+    }, 300);
+  };
+
+  // Sync with URL query parameters
   useEffect(() => {
     const urlKeyword = searchParams.get('keyword');
     const urlType = searchParams.get('type');
     const urlLocation = searchParams.get('location');
     const urlPage = searchParams.get('page');
 
-    if (urlKeyword !== null) setKeyword(urlKeyword);
+    if (urlKeyword !== null) {
+      setKeyword(urlKeyword);
+      setDebouncedKeyword(urlKeyword);
+    }
     if (urlType !== null) setSelectedType(urlType);
     if (urlLocation !== null) setSelectedLocation(urlLocation);
     if (urlPage !== null) setCurrentPage(parseInt(urlPage, 10) || 1);
   }, [searchParams]);
 
-  // Fetch jobs whenever filters or page changes
+  // Fetch jobs whenever filters or debounced keyword changes
   useEffect(() => {
     let isCancelled = false;
 
@@ -41,18 +78,28 @@ export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, sh
         setIsLoading(true);
         const result = await jobService.getJobs({
           page: currentPage,
-          limit: 6,
-          keyword,
+          limit: 9, // 9 items per page for 3-column desktop layout
+          keyword: debouncedKeyword,
           type: selectedType,
           location: selectedLocation
         });
 
         if (!isCancelled && result && result.data) {
+          let list = Array.isArray(result.data.jobs) ? result.data.jobs : (Array.isArray(result.data) ? result.data : []);
+
+          // Sorting client-side if applicants sort requested
+          if (sortBy === 'applicants') {
+            list = [...list].sort((a, b) => (b.applicants_count || 0) - (a.applicants_count || 0));
+          } else {
+            // Newest
+            list = [...list].sort((a, b) => new Date(b.created_at || 0) - new Date(a.created_at || 0));
+          }
+
           setJobsData({
-            jobs: Array.isArray(result.data.jobs) ? result.data.jobs : [],
-            totalJobs: result.data.totalJobs || 0,
-            totalPages: result.data.totalPages || 1,
-            currentPage: result.data.currentPage || 1
+            jobs: list,
+            totalJobs: result.data.totalJobs || result.pagination?.totalJobs || list.length,
+            totalPages: result.data.totalPages || result.pagination?.totalPages || 1,
+            currentPage: result.data.currentPage || result.pagination?.currentPage || 1
           });
         }
       } catch (err) {
@@ -70,15 +117,14 @@ export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, sh
     return () => {
       isCancelled = true;
     };
-  }, [currentPage, keyword, selectedType, selectedLocation]);
+  }, [currentPage, debouncedKeyword, selectedType, selectedLocation, sortBy]);
 
-  const handleSearchSubmit = (e) => {
-    e.preventDefault();
+  const handleFilterChange = (typeVal, locVal, sortVal) => {
     setCurrentPage(1);
     const newParams = new URLSearchParams();
     if (keyword.trim()) newParams.set('keyword', keyword.trim());
-    if (selectedType && selectedType !== 'all') newParams.set('type', selectedType);
-    if (selectedLocation && selectedLocation !== 'all') newParams.set('location', selectedLocation);
+    if (typeVal && typeVal !== 'all') newParams.set('type', typeVal);
+    if (locVal && locVal !== 'all') newParams.set('location', locVal);
     setSearchParams(newParams);
   };
 
@@ -91,86 +137,85 @@ export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, sh
   };
 
   return (
-    <div className="w-full max-w-[1360px] mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-10 font-mono">
+    <div className="w-full max-w-[1360px] mx-auto px-3 sm:px-6 lg:px-8 py-6 sm:py-10 font-mono text-xs">
       {/* Header Bar */}
       <div className="mb-5 sm:mb-8">
-        <div className="flex items-center gap-2 text-[#6b5c47] text-xs uppercase tracking-widest font-semibold mb-2">
+        <div className="flex items-center gap-2 text-[#6b5c47] text-[10px] uppercase tracking-widest font-semibold mb-2">
           <span>Katalog Karir Terkurasi</span>
           <span>•</span>
           <span>{jobsData.totalJobs} Lowongan Aktif</span>
         </div>
-        <h1 className="font-heading text-2xl sm:text-3xl lg:text-4xl font-bold text-[#1c1917] tracking-tight">
-          Peluang Karir Eksekutif dan Tech
+        <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl font-bold tracking-tight text-[#1c1917]">
+          Jelajahi Posisi Terbuka
         </h1>
-        <p className="font-sans text-xs sm:text-sm text-[#57534e] mt-1 max-w-2xl leading-relaxed">
-          Temukan lowongan dengan kualifikasi mendalam, kompensasi transparan, dan reputasi terverifikasi.
+        <p className="font-serif italic text-xs sm:text-sm text-[#57534e] mt-1 max-w-2xl leading-relaxed">
+          Arsip lowongan langsung dari studio teknologi, agensi desain, dan tech company terverifikasi.
         </p>
       </div>
 
-      {/* Search & Filter Bar */}
-      <div className="bg-[#EFE9E3] border border-[#D9CFC7] p-3 sm:p-4 mb-5 sm:mb-8">
-        <form onSubmit={handleSearchSubmit} className="grid grid-cols-1 sm:grid-cols-12 gap-2.5 sm:gap-3 items-center">
-          {/* Keyword Search */}
-          <div className="sm:col-span-12 lg:col-span-5 flex items-center bg-[#F9F8F6] border border-[#D9CFC7] px-3 py-2 text-xs">
-            <Search size={15} className="text-[#78716c] mr-2 shrink-0" />
+      {/* Filter and Search Control Panel */}
+      <div className="bg-[#F9F8F6] border border-[#D9CFC7] p-3 sm:p-5 mb-6 sm:mb-8 shadow-sm">
+        <div className="flex flex-col lg:flex-row gap-3">
+          {/* Real-time Debounced Search Input (Requirement 4.2) */}
+          <div className="relative flex-1">
+            <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
             <input
               type="text"
+              placeholder="Cari judul posisi atau nama perusahaan (real-time 300ms)..."
               value={keyword}
-              onChange={(e) => setKeyword(e.target.value)}
-              placeholder="Cari posisi, perusahaan, atau skill..."
-              className="bg-transparent border-none outline-none text-[#1c1917] w-full font-mono text-xs"
+              onChange={handleKeywordChange}
+              className="fm-input w-full pl-9 pr-3 py-2 text-xs"
             />
           </div>
 
-          {/* Job Type Filter */}
-          <div className="sm:col-span-6 lg:col-span-3">
+          {/* Filters & Sorting Panel */}
+          <div className="flex flex-wrap sm:flex-nowrap items-center gap-2">
+            {/* Filter Tipe (Full-time, Part-time, Contract, Internship) */}
             <select
               value={selectedType}
               onChange={(e) => {
                 setSelectedType(e.target.value);
-                setCurrentPage(1);
+                handleFilterChange(e.target.value, selectedLocation, sortBy);
               }}
-              className="w-full bg-[#F9F8F6] border border-[#D9CFC7] px-3 py-2 text-xs text-[#1c1917] outline-none cursor-pointer"
+              className="fm-input py-2 px-2.5 text-xs bg-[#F9F8F6] flex-1 sm:flex-initial"
             >
-              <option value="all">Semua Tipe Pekerjaan</option>
-              <option value="full-time">Full-Time</option>
-              <option value="part-time">Part-Time</option>
-              <option value="contract">Contract</option>
-              <option value="internship">Internship</option>
+              {JOB_TYPES.map((t) => (
+                <option key={t.value} value={t.value}>
+                  {t.label}
+                </option>
+              ))}
             </select>
-          </div>
 
-          {/* Location Filter */}
-          <div className="sm:col-span-6 lg:col-span-3">
+            {/* Filter Lokasi (termasuk opsi 'Remote') */}
             <select
               value={selectedLocation}
               onChange={(e) => {
                 setSelectedLocation(e.target.value);
-                setCurrentPage(1);
+                handleFilterChange(selectedType, e.target.value, sortBy);
               }}
-              className="w-full bg-[#F9F8F6] border border-[#D9CFC7] px-3 py-2 text-xs text-[#1c1917] outline-none cursor-pointer"
+              className="fm-input py-2 px-2.5 text-xs bg-[#F9F8F6] flex-1 sm:flex-initial"
             >
-              <option value="all">Semua Lokasi</option>
-              <option value="remote">Remote (Worldwide / ID)</option>
-              <option value="jakarta">Jakarta</option>
-              <option value="san francisco">San Francisco</option>
-              <option value="london">London</option>
+              {LOCATIONS.map((l) => (
+                <option key={l.value} value={l.value}>
+                  {l.label}
+                </option>
+              ))}
+            </select>
+
+            {/* Sorting (Terbaru atau Paling Banyak Pelamar) */}
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              className="fm-input py-2 px-2.5 text-xs bg-[#EFE9E3] border-[#1c1917] flex-1 sm:flex-initial font-bold"
+            >
+              <option value="newest">Terbaru</option>
+              <option value="applicants">Paling Banyak Pelamar</option>
             </select>
           </div>
-
-          {/* Filter Action */}
-          <div className="sm:col-span-12 lg:col-span-1">
-            <button
-              type="submit"
-              className="w-full fm-btn fm-btn-primary py-2 text-xs flex items-center justify-center gap-1"
-            >
-              <span>Cari</span>
-            </button>
-          </div>
-        </form>
+        </div>
       </div>
 
-      {/* Jobs Catalog Stream */}
+      {/* Jobs Catalog Grid - Responsive (1 col mobile, 2 col tablet, 3 col desktop - Requirement 4.2) */}
       {isLoading ? (
         <div className="py-20 text-center font-mono text-xs text-[#78716c]">
           Memuat daftar lowongan pekerjaan dari server...
@@ -187,8 +232,10 @@ export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, sh
             type="button"
             onClick={() => {
               setKeyword('');
+              setDebouncedKeyword('');
               setSelectedType('all');
               setSelectedLocation('all');
+              setSortBy('newest');
               setCurrentPage(1);
             }}
             className="mt-4 fm-btn px-4 py-2 border-[#D9CFC7] bg-[#F9F8F6] text-[#1c1917] hover:border-[#1c1917]"
@@ -197,64 +244,67 @@ export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, sh
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
           {jobsData.jobs.map((job) => {
             const isSaved = savedJobIds.includes(String(job.id));
             return (
               <article
                 key={job.id}
-                className="bg-[#F9F8F6] border border-[#D9CFC7] p-4 sm:p-6 hover:border-[#1c1917] transition-all flex flex-col justify-between group shadow-sm hover:shadow-md"
+                className="bg-[#F9F8F6] border border-[#D9CFC7] p-4 sm:p-5 hover:border-[#1c1917] transition-all flex flex-col justify-between group shadow-sm hover:shadow-md"
               >
                 <div>
                   <div className="flex items-start justify-between gap-3 mb-2">
                     <div>
-                      <span className="font-bold text-[#6b5c47] text-xs uppercase tracking-wider block">
+                      <span className="font-bold text-[#6b5c47] text-[11px] uppercase tracking-wider block">
                         {job.company}
                       </span>
                       <Link to={`/jobs/${job.id}`}>
-                        <h2 className="font-heading text-lg sm:text-xl font-bold text-[#1c1917] group-hover:text-[#6b5c47] transition-colors mt-0.5 leading-snug">
+                        <h2 className="font-heading text-base sm:text-lg font-bold text-[#1c1917] group-hover:text-[#6b5c47] transition-colors mt-0.5 leading-snug">
                           {job.title}
                         </h2>
                       </Link>
                     </div>
 
-                    <button
-                      type="button"
-                      onClick={(e) => onToggleBookmark && onToggleBookmark(e, String(job.id))}
-                      className="p-1.5 text-[#78716c] hover:text-[#1c1917] transition-colors shrink-0"
-                      aria-label="Simpan lowongan"
-                    >
-                      <Bookmark size={16} className={isSaved ? 'fill-[#C9B59C] text-[#6b5c47]' : ''} />
-                    </button>
+                    {!isRecruiter && (
+                      <button
+                        type="button"
+                        onClick={(e) => onToggleBookmark && onToggleBookmark(e, String(job.id))}
+                        className="p-1.5 text-[#78716c] hover:text-[#1c1917] transition-colors shrink-0"
+                        aria-label="Simpan lowongan"
+                      >
+                        <Bookmark size={15} className={isSaved ? 'fill-[#C9B59C] text-[#6b5c47]' : ''} />
+                      </button>
+                    )}
                   </div>
 
-                  <p className="font-sans text-xs text-[#57534e] line-clamp-2 my-3 leading-relaxed">
+                  <p className="font-sans text-xs text-[#57534e] line-clamp-2 my-2.5 leading-relaxed">
                     {job.description}
                   </p>
 
-                  <div className="flex flex-wrap items-center gap-2 mb-4 text-[10px]">
-                    <span className="bg-[#EFE9E3] border border-[#D9CFC7] px-2.5 py-0.5 uppercase font-bold text-[#1c1917]">
+                  <div className="flex flex-wrap items-center gap-1.5 mb-4 text-[9px]">
+                    <span className="bg-[#EFE9E3] border border-[#D9CFC7] px-2 py-0.5 uppercase font-bold text-[#1c1917]">
                       {job.type}
                     </span>
-                    <span className="bg-[#EFE9E3] border border-[#D9CFC7] px-2.5 py-0.5 text-[#57534e]">
+                    <span className="bg-[#EFE9E3] border border-[#D9CFC7] px-2 py-0.5 text-[#57534e]">
                       {job.location || 'Remote'}
                     </span>
-                    <span className="bg-[#f2dcc2]/60 text-[#70604b] px-2.5 py-0.5 font-bold">
+                    <span className="bg-[#f2dcc2]/60 text-[#70604b] px-2 py-0.5 font-bold">
                       {formatSalary(job.salary_min, job.salary_max)}
                     </span>
                   </div>
                 </div>
 
-                <div className="pt-4 border-t border-[#D9CFC7]/60 flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 text-xs">
-                  <span className="text-[10px] text-[#78716c] truncate max-w-[200px] sm:max-w-none">
-                    Diposting oleh: {job.recruiter_name || 'Verified Recruiter'}
+                <div className="pt-3 border-t border-[#D9CFC7]/60 flex items-center justify-between gap-2 text-[10px]">
+                  <span className="text-[#78716c] truncate">
+                    {job.recruiter_name || 'Verified Recruiter'}
                   </span>
+
                   <Link
                     to={`/jobs/${job.id}`}
-                    className="fm-btn fm-btn-primary px-3.5 py-1.5 text-[11px] flex items-center justify-center gap-1.5 w-full sm:w-auto"
+                    className="fm-btn fm-btn-primary px-3 py-1 flex items-center gap-1 shrink-0 font-bold"
                   >
-                    <span>Detail & Lamar</span>
-                    <ArrowRight size={12} />
+                    <span>Detail</span>
+                    <ArrowRight size={11} />
                   </Link>
                 </div>
               </article>
@@ -265,47 +315,34 @@ export default function JobsCatalogPage({ savedJobIds = [], onToggleBookmark, sh
 
       {/* Pagination Controls */}
       {jobsData.totalPages > 1 && (
-        <div className="flex flex-wrap items-center justify-center gap-2 mt-8 sm:mt-12 pt-6 border-t border-[#D9CFC7]">
-          <button
-            type="button"
-            disabled={currentPage <= 1}
-            onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
-            className="fm-btn px-3 py-1.5 text-xs border-[#D9CFC7] bg-[#EFE9E3] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
-          >
-            <ChevronLeft size={14} />
-            <span className="hidden xs:inline">Sebelumnya</span>
-          </button>
-
-          {/* Mobile Page Info */}
-          <div className="sm:hidden font-mono text-xs px-2 text-[#57534e]">
-            {currentPage} / {jobsData.totalPages}
+        <div className="mt-8 pt-6 border-t border-[#D9CFC7] flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="text-[11px] text-[#57534e]">
+            Menampilkan halaman <strong>{jobsData.currentPage}</strong> dari <strong>{jobsData.totalPages}</strong> (Total {jobsData.totalJobs} lowongan)
           </div>
 
-          <div className="hidden sm:flex items-center gap-1.5">
-            {Array.from({ length: jobsData.totalPages }, (_, i) => i + 1).map((pageNum) => (
-              <button
-                key={pageNum}
-                type="button"
-                onClick={() => setCurrentPage(pageNum)}
-                className={`w-8 h-8 text-xs font-bold transition-colors ${currentPage === pageNum
-                  ? 'bg-[#1c1917] text-[#F9F8F6]'
-                  : 'bg-[#EFE9E3] border border-[#D9CFC7] text-[#1c1917] hover:bg-[#D9CFC7]'
-                  }`}
-              >
-                {pageNum}
-              </button>
-            ))}
-          </div>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+              disabled={jobsData.currentPage <= 1 || isLoading}
+              className="fm-btn px-3 py-1.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] disabled:opacity-40 flex items-center gap-1"
+            >
+              <ChevronLeft size={13} />
+              <span>Sebelumnya</span>
+            </button>
 
-          <button
-            type="button"
-            disabled={currentPage >= jobsData.totalPages}
-            onClick={() => setCurrentPage((p) => Math.min(jobsData.totalPages, p + 1))}
-            className="fm-btn px-3 py-1.5 text-xs border-[#D9CFC7] bg-[#EFE9E3] disabled:opacity-40 disabled:cursor-not-allowed flex items-center gap-1"
-          >
-            <span className="hidden xs:inline">Selanjutnya</span>
-            <ChevronRight size={14} />
-          </button>
+            <span className="px-3 py-1.5 bg-[#1c1917] text-[#F9F8F6] font-bold">
+              {jobsData.currentPage}
+            </span>
+
+            <button
+              onClick={() => setCurrentPage((p) => Math.min(jobsData.totalPages, p + 1))}
+              disabled={jobsData.currentPage >= jobsData.totalPages || isLoading}
+              className="fm-btn px-3 py-1.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] disabled:opacity-40 flex items-center gap-1"
+            >
+              <span>Selanjutnya</span>
+              <ChevronRight size={13} />
+            </button>
+          </div>
         </div>
       )}
     </div>

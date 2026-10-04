@@ -1,26 +1,55 @@
 {
 	"info": {
 		"_postman_id": "8a32bb58-e3cf-48ad-8d39-e58f297924c1",
-		"name": "JobHunt - Applications & Tracking API",
-		"description": "Collection Postman untuk fitur Riwayat Lamaran (Applications) antara Job Seeker dan Recruiter sesuai spesifikasi:\n1. POST /api/jobs/:id/apply - Lamar pekerjaan (Job Seeker)\n2. GET /api/applications/mine - Riwayat lamaran user login (Job Seeker)\n3. GET /api/jobs/:id/applicants - Daftar pelamar untuk job tertentu (Recruiter)\n4. PUT /api/applications/:id - Update status lamaran (Recruiter)\n\nSudah dilengkapi dengan variabel token siap pakai (active 30 hari).",
+		"name": "JobHunt - Feature Application Tracking & Jobs API",
+		"description": "Collection Postman lengkap untuk branch feature/application-tracking pada aplikasi JobHunt Fullstack.\nMencakup seluruh endpoint Auth, Jobs, dan Application Tracking antara Job Seeker dan Recruiter.\n\nFitur:\n- Auto-save JWT token ke collection variable saat login\n- Dilengkapi pre-configured token siap pakai (aktif 30 hari)\n- Contoh request & response lengkap",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
 	},
 	"item": [
 		{
-			"name": "1. Authentication (Opsional / Helper)",
+			"name": "1. Authentication",
 			"item": [
 				{
-					"name": "Login Job Seeker",
+					"name": "Register User (POST /api/auth/register)",
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"name\": \"Kandidat Baru\",\n  \"email\": \"kandidat.baru@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"job_seeker\"\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/auth/register",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"auth",
+								"register"
+							]
+						},
+						"description": "Mendaftarkan pengguna baru dengan pilihan role: 'job_seeker' atau 'recruiter'."
+					},
+					"response": []
+				},
+				{
+					"name": "Login Job Seeker (POST /api/auth/login)",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
 									"if (pm.response.code === 200) {",
-									"    const jsonData = pm.response.json();",
-									"    if (jsonData.data && jsonData.data.token) {",
-									"        pm.collectionVariables.set('seeker_token', jsonData.data.token);",
-									"        console.log('Seeker token otomatis disimpan ke collection variable!');",
+									"    const res = pm.response.json();",
+									"    if (res.data && res.data.token) {",
+									"        pm.collectionVariables.set('seeker_token', res.data.token);",
+									"        console.log('✓ seeker_token berhasil disimpan ke Collection Variables!');",
 									"    }",
 									"}"
 								],
@@ -51,22 +80,22 @@
 								"login"
 							]
 						},
-						"description": "Login sebagai Job Seeker untuk mendapatkan token JWT baru."
+						"description": "Login sebagai Job Seeker. Token otomatis disimpan ke variabel 'seeker_token'."
 					},
 					"response": []
 				},
 				{
-					"name": "Login Recruiter",
+					"name": "Login Recruiter (POST /api/auth/login)",
 					"event": [
 						{
 							"listen": "test",
 							"script": {
 								"exec": [
 									"if (pm.response.code === 200) {",
-									"    const jsonData = pm.response.json();",
-									"    if (jsonData.data && jsonData.data.token) {",
-									"        pm.collectionVariables.set('recruiter_token', jsonData.data.token);",
-									"        console.log('Recruiter token otomatis disimpan ke collection variable!');",
+									"    const res = pm.response.json();",
+									"    if (res.data && res.data.token) {",
+									"        pm.collectionVariables.set('recruiter_token', res.data.token);",
+									"        console.log('✓ recruiter_token berhasil disimpan ke Collection Variables!');",
 									"    }",
 									"}"
 								],
@@ -97,12 +126,12 @@
 								"login"
 							]
 						},
-						"description": "Login sebagai Recruiter untuk mendapatkan token JWT baru."
+						"description": "Login sebagai Recruiter. Token otomatis disimpan ke variabel 'recruiter_token'."
 					},
 					"response": []
 				},
 				{
-					"name": "Get Profile Me",
+					"name": "Get Profile Me (GET /api/auth/me)",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -127,14 +156,235 @@
 								"me"
 							]
 						},
-						"description": "Cek data profil pengguna yang sedang login."
+						"description": "Mengambil data profil pengguna yang sedang login berdasarkan JWT token."
 					},
 					"response": []
 				}
 			]
 		},
 		{
-			"name": "2. Applications - Job Seeker",
+			"name": "2. Jobs",
+			"item": [
+				{
+					"name": "Semua Job Aktif (GET /api/jobs)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/jobs?page=1&limit=10&keyword=&type=&location=",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"jobs"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								},
+								{
+									"key": "keyword",
+									"value": "",
+									"description": "Pencarian judul atau perusahaan (bisa debounced)"
+								},
+								{
+									"key": "type",
+									"value": "",
+									"description": "Filter tipe: full-time, part-time, contract, internship"
+								},
+								{
+									"key": "location",
+									"value": "",
+									"description": "Filter kota atau 'Remote'"
+								},
+								{
+									"key": "sort",
+									"value": "newest",
+									"description": "Urutkan: newest | applicants"
+								}
+							]
+						},
+						"description": "Mendapatkan katalog lowongan pekerjaan yang sedang aktif (Public)."
+					},
+					"response": []
+				},
+				{
+					"name": "Detail Satu Job (GET /api/jobs/:id)",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/jobs/{{job_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"jobs",
+								"{{job_id}}"
+							]
+						},
+						"description": "Mendapatkan detail satu lowongan pekerjaan berdasarkan ID (Public)."
+					},
+					"response": []
+				},
+				{
+					"name": "Daftar Job Milik Recruiter (GET /api/jobs/mine)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/jobs/mine?page=1&limit=10",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"jobs",
+								"mine"
+							],
+							"query": [
+								{
+									"key": "page",
+									"value": "1"
+								},
+								{
+									"key": "limit",
+									"value": "10"
+								}
+							]
+						},
+						"description": "Daftar seluruh lowongan pekerjaan yang dipublikasikan oleh recruiter yang sedang login (Role: Recruiter)."
+					},
+					"response": []
+				},
+				{
+					"name": "Posting Job Baru (POST /api/jobs)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Principal Spatial Systems Engineer\",\n  \"company\": \"Aura Studios\",\n  \"location\": \"Remote\",\n  \"type\": \"full-time\",\n  \"description\": \"Memimpin arsitektur sistem grafika 3D dan spatial rendering untuk platform generasi berikutnya.\",\n  \"requirements\": \"- 5+ tahun pengalaman C++ / Rust\\n- Pemahaman mendalam Metal / Vulkan\\n- Portofolio spatial computing\",\n  \"salary_min\": 28000000,\n  \"salary_max\": 45000000\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/jobs",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"jobs"
+							]
+						},
+						"description": "Recruiter membuat lowongan pekerjaan baru (Role: Recruiter)."
+					},
+					"response": []
+				},
+				{
+					"name": "Update Job (PUT /api/jobs/:id)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "PUT",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"title\": \"Senior Spatial Systems Engineer (Updated)\",\n  \"salary_min\": 30000000,\n  \"salary_max\": 50000000,\n  \"is_active\": true\n}"
+						},
+						"url": {
+							"raw": "{{base_url}}/api/jobs/{{job_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"jobs",
+								"{{job_id}}"
+							]
+						},
+						"description": "Mengubah lowongan pekerjaan. Dilindungi kepemilikan (hanya milik recruiter yang bersangkutan)."
+					},
+					"response": []
+				},
+				{
+					"name": "Hapus Job (DELETE /api/jobs/:id)",
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{recruiter_token}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{base_url}}/api/jobs/{{job_id}}",
+							"host": [
+								"{{base_url}}"
+							],
+							"path": [
+								"api",
+								"jobs",
+								"{{job_id}}"
+							]
+						},
+						"description": "Menghapus lowongan pekerjaan secara permanen (hanya milik recruiter yang bersangkutan)."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "3. Applications - Job Seeker",
 			"item": [
 				{
 					"name": "Lamar Pekerjaan (POST /api/jobs/:id/apply)",
@@ -158,7 +408,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\n  \"cover_letter\": \"Saya sangat tertarik untuk melamar posisi ini karena memiliki keahlian dan portofolio yang relevan dengan kebutuhan tim.\"\n}"
+							"raw": "{\n  \"cover_letter\": \"Saya sangat tertarik untuk melamar posisi ini karena memiliki pengalaman relevan dalam pengembangan sistem spatial computing dan microservices.\"\n}"
 						},
 						"url": {
 							"raw": "{{base_url}}/api/jobs/{{job_id}}/apply",
@@ -172,7 +422,7 @@
 								"apply"
 							]
 						},
-						"description": "Endpoint bagi Job Seeker untuk melamar lowongan pekerjaan tertentu.\n- Auth: Job Seeker (Bearer Token)\n- Body: cover_letter (opsional)"
+						"description": "Mengajukan lamaran pada lowongan pekerjaan tertentu.\n- Auth: Job Seeker\n- Body: cover_letter (opsional)"
 					},
 					"response": []
 				},
@@ -202,17 +452,17 @@
 								"mine"
 							]
 						},
-						"description": "Melihat seluruh riwayat lamaran yang diajukan oleh Job Seeker yang sedang login, lengkap dengan judul posisi, perusahaan, tanggal melamar, dan statusnya (pending / reviewed / rejected)."
+						"description": "Melihat riwayat lamaran yang telah diajukan beserta status terkininya (pending / reviewed / rejected)."
 					},
 					"response": []
 				}
 			]
 		},
 		{
-			"name": "3. Applications - Recruiter",
+			"name": "4. Applications - Recruiter",
 			"item": [
 				{
-					"name": "Daftar Pelamar Suatu Job (GET /api/jobs/:id/applicants)",
+					"name": "Daftar Pelamar untuk Job Tertentu (GET /api/jobs/:id/applicants)",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -238,12 +488,12 @@
 								"applicants"
 							]
 						},
-						"description": "Melihat daftar pelamar untuk job tertentu milik Recruiter yang sedang login.\n- Auth: Recruiter\n- Status: 200 OK dengan list pelamar (nama, email, cover letter, status, waktu lamaran)."
+						"description": "Melihat daftar seluruh pelamar yang mengajukan lamaran ke lowongan pekerjaan milik recruiter tersebut."
 					},
 					"response": []
 				},
 				{
-					"name": "Update Status Lamaran (PUT /api/applications/:id)",
+					"name": "Update Status Lamaran -> Reviewed (PUT /api/applications/:id)",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -277,7 +527,7 @@
 								"{{application_id}}"
 							]
 						},
-						"description": "Memperbarui status lamaran pelamar.\n- Auth: Recruiter (pemilik lowongan)\n- Body: status ('pending' | 'reviewed' | 'rejected')"
+						"description": "Mengubah status lamaran menjadi 'reviewed'."
 					},
 					"response": []
 				},
@@ -316,12 +566,12 @@
 								"{{application_id}}"
 							]
 						},
-						"description": "Contoh mengubah status pelamar menjadi 'rejected'."
+						"description": "Mengubah status lamaran menjadi 'rejected'."
 					},
 					"response": []
 				},
 				{
-					"name": "Dashboard Recruiter Summary (GET /api/applications/dashboard)",
+					"name": "Ringkasan Dashboard Recruiter (GET /api/applications/dashboard)",
 					"request": {
 						"auth": {
 							"type": "bearer",
@@ -346,7 +596,7 @@
 								"dashboard"
 							]
 						},
-						"description": "Mendapatkan ringkasan dashboard recruiter: total lowongan yang diposting, total pelamar, serta breakdown status (pending, reviewed, rejected)."
+						"description": "Menampilkan statistik total lowongan yang diposting dan total pelamar beserta rincian status (pending, reviewed, rejected)."
 					},
 					"response": []
 				}
@@ -371,12 +621,12 @@
 		},
 		{
 			"key": "seeker_token",
-			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibmFtZSI6IkJ1ZGkgU2FudG9zbyIsImVtYWlsIjoiYnVkaUBleGFtcGxlLmNvbSIsInJvbGUiOiJqb2Jfc2Vla2VyIiwiaWF0IjoxNzkxMDg4OTM2LCJleHAiOjE3OTM2ODA5MzZ9.3N-lC4kFYnlXGH8IJLSfAx2_Q-8fcHzx9hTvaQIX43g",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6MSwibmFtZSI6IkJ1ZGkgU2FudG9zbyIsImVtYWlsIjoiYnVkaUBleGFtcGxlLmNvbSIsInJvbGUiOiJqb2Jfc2Vla2VyIiwiaWF0IjoxNzkxMDk1NTYxLCJleHAiOjE3OTM2ODc1NjF9.aNr-eX-tZS-wq4O2aIvQb9AS8IfDgO49wH2ixwLraGg",
 			"type": "string"
 		},
 		{
 			"key": "recruiter_token",
-			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6InJlY3J1aXRlcnMiLCJlbWFpbCI6InJlY3J1aXRlcnNAZXhhbXBsZS5jb20iLCJyb2xlIjoicmVjcnVpdGVyIiwiaWF0IjoxNzkxMDg4OTM2LCJleHAiOjE3OTM2ODA5MzZ9.eRp-IZ5kfBSdtIP1kevkpy0W8uTgtCmmtKv-JqJiEBE",
+			"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6NCwibmFtZSI6InJlY3J1aXRlcnMiLCJlbWFpbCI6InJlY3J1aXRlcnNAZXhhbXBsZS5jb20iLCJyb2xlIjoicmVjcnVpdGVyIiwiaWF0IjoxNzkxMDk1NTYxLCJleHAiOjE3OTM2ODc1NjF9.6rZYfktsYMcb6eVgWKfxUrPoARcDDRoaI7UyhPidi2M",
 			"type": "string"
 		}
 	]
