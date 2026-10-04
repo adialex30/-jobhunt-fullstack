@@ -1,12 +1,17 @@
 export default function Header({
   user,
-  onLogout
+  onLogout,
+  currentView = 'profile',
+  onChangeView
 }) {
   return (
     <header className="w-full bg-[#F9F8F6] border-b border-[#D9CFC7] max-w-full overflow-hidden">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
 
-        <div className="flex flex-col cursor-pointer items-center sm:items-start text-center sm:text-left">
+        <div
+          onClick={() => onChangeView && onChangeView('profile')}
+          className="flex flex-col cursor-pointer items-center sm:items-start text-center sm:text-left"
+        >
           <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-[#1c1917] hover:text-[#C9B59C] transition-colors leading-none">
             forcemajeure.bzh
           </h1>
@@ -14,9 +19,8 @@ export default function Header({
             CAREER NETWORK & AUTH PORTAL
           </span>
         </div>
-
         <div className="flex items-center gap-3 sm:gap-4 font-mono text-xs">
-          {user && (
+          {user ? (
             <>
               <div className="border border-[#1c1917] bg-[#C9B59C] text-[#1c1917] font-mono text-[11px] px-3 py-1 font-bold uppercase tracking-wider">
                 ROLE: {user.role ? user.role.replace('_', ' ') : 'JOB SEEKER'}
@@ -33,6 +37,15 @@ export default function Header({
                 </button>
               </div>
             </>
+          ) : (
+            <button
+              type="button"
+              onClick={() => onChangeView && onChangeView('auth')}
+              className={`px-3 py-1.5 border border-[#1c1917] font-bold uppercase tracking-wider text-[11px] transition-all ${currentView === 'auth' ? 'bg-[#1c1917] text-[#F9F8F6]' : 'bg-[#EFE9E3] text-[#1c1917] hover:bg-[#D9CFC7]'
+                }`}
+            >
+              LOGIN / REGISTER
+            </button>
           )}
         </div>
 

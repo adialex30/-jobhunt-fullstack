@@ -2,11 +2,13 @@ import React, { useState, useEffect } from 'react';
 import Header from './components/Header';
 import AuthView from './components/AuthView';
 import HomePage from './components/HomePage';
+import ProfilePage from './components/ProfilePage';
 import Footer from './components/Footer';
 import { api } from './services/api';
 
 export default function App() {
   const [currentUser, setCurrentUser] = useState(null);
+  const [currentView, setCurrentView] = useState('profile');
   const [toastNotification, setToastNotification] = useState(null);
 
   useEffect(() => {
@@ -42,17 +44,38 @@ export default function App() {
       <Header
         user={currentUser}
         onLogout={handleUserLogout}
+        currentView={currentView}
+        onChangeView={setCurrentView}
       />
 
       <main className="flex-1 flex flex-col">
-        {currentUser ? (
-          <HomePage
+        {currentView === 'profile' ? (
+          <ProfilePage
             user={currentUser}
             onLogout={handleUserLogout}
+            showToast={displayToast}
           />
+        ) : currentView === 'home' ? (
+          currentUser ? (
+            <HomePage
+              user={currentUser}
+              onLogout={handleUserLogout}
+            />
+          ) : (
+            <AuthView
+              setUser={(user) => {
+                setCurrentUser(user);
+                setCurrentView('profile');
+              }}
+              showToast={displayToast}
+            />
+          )
         ) : (
           <AuthView
-            setUser={setCurrentUser}
+            setUser={(user) => {
+              setCurrentUser(user);
+              setCurrentView('profile');
+            }}
             showToast={displayToast}
           />
         )}
