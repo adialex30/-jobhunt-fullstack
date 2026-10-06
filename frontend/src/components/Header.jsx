@@ -1,509 +1,360 @@
-<<<<<<< HEAD
-import React, { useState, useEffect, useRef } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../context/AuthContext';
 import {
+  Briefcase,
   Bookmark,
-  PlusCircle,
-  Bell,
-  User,
+  LogOut,
+  LayoutDashboard,
+  FileText,
   Users,
+  User,
   Menu,
   X,
-  ExternalLink,
-  ChevronDown,
-  LogOut,
-  SlidersHorizontal,
-  FileText,
-  Briefcase
+  Plus
 } from 'lucide-react';
 
 export default function Header({
-  isLoggedIn = true,
-  onLogin,
-  onLogout,
   savedJobsCount = 0,
   onOpenSaved,
-  onOpenPostModal,
-  onOpenManageJobs,
   showToast
 }) {
-  const [currentTime, setCurrentTime] = useState('');
-  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
-  const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [isProfileOpen, setIsProfileOpen] = useState(false);
-  const [hasUnreadNotif, setHasUnreadNotif] = useState(true);
-
-  const notifRef = useRef(null);
-  const profileRef = useRef(null);
   const navigate = useNavigate();
+  const location = useLocation();
+  const { user, isLoggedIn, isRecruiter, isJobSeeker, logout } = useAuth();
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-  // Close popovers when clicking outside
+  // Close mobile menu on page transition
   useEffect(() => {
-    const handleClickOutside = (e) => {
-      if (notifRef.current && !notifRef.current.contains(e.target)) {
-        setIsNotifOpen(false);
-      }
-      if (profileRef.current && !profileRef.current.contains(e.target)) {
-        setIsProfileOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-    return () => document.removeEventListener('mousedown', handleClickOutside);
-  }, []);
+    setIsMobileMenuOpen(false);
+  }, [location.pathname, location.search]);
 
-  const notifications = [
-    {
-      id: 1,
-      title: 'Kinetic Spatial Labs update',
-      desc: 'Principal Product Designer opening matched 98% with your profile.',
-      time: '12m ago',
-      unread: true
-    },
-    {
-      id: 2,
-      title: 'Issue Nº 42 Published',
-      desc: 'Bespoke Advisory Index for Q2 is now open for review.',
-      time: '2h ago',
-      unread: true
-    },
-    {
-      id: 3,
-      title: 'Dossier Dispatched',
-      desc: 'Your confidential Aura credentials were sent to Mirage Applied AI.',
-      time: '1d ago',
-      unread: false
+  const handleLogout = () => {
+    logout();
+    setIsMobileMenuOpen(false);
+    if (showToast) {
+      showToast('You have successfully logged out.');
     }
-  ];
+    navigate('/login');
+  };
+
+  const isActive = (path) => {
+    if (path === '/' && location.pathname === '/') return true;
+    if (path.includes('tab=candidates')) {
+      return location.pathname === '/opportunities' && location.search.includes('tab=candidates');
+    }
+    if (path.includes('tab=jobs')) {
+      return location.pathname === '/opportunities' && (location.search.includes('tab=jobs') || !location.search);
+    }
+    if (path !== '/' && location.pathname.startsWith(path)) return true;
+    return false;
+  };
 
   return (
-    <header className="w-full bg-[#F9F8F6] border-b border-[#D9CFC7] sticky top-0 z-40 backdrop-blur-md bg-opacity-95 transition-all">
-      <div className="max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-4">
+    <header className="w-full bg-[#F9F8F6] border-b border-[#D9CFC7] sticky top-0 z-40 font-mono">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex items-center justify-between gap-3">
 
-        {/* Brand & Live Archive Status */}
-        <div className="flex items-center gap-3 shrink-0">
-          <div
-            onClick={() => navigate('/')}
-            className="flex flex-col cursor-pointer group"
+        {/* Brand / Logo */}
+        <Link to="/" className="flex flex-col group shrink-0">
+          <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-[#1c1917] group-hover:text-[#6b5c47] transition-colors leading-none">
+            jobhunt.bzh
+          </h1>
+          <span className="text-[9px] text-[#57534e] uppercase tracking-widest mt-1">
+            TALENT &amp; CAREER PLATFORM
+          </span>
+        </Link>
+
+        {/* Desktop Navigation Links */}
+        <nav className="hidden md:flex items-center gap-1 lg:gap-2 text-xs">
+          <Link
+            to="/"
+            className={`px-3 py-1.5 transition-colors font-bold uppercase tracking-wider ${isActive('/')
+                ? 'bg-[#1c1917] text-[#F9F8F6]'
+                : 'text-[#57534e] hover:text-[#1c1917] hover:bg-[#EFE9E3]'
+              }`}
           >
-            <span className="font-heading text-lg sm:text-xl md:text-2xl font-bold tracking-tight text-[#1c1917] leading-none group-hover:text-[#6b5c47] transition-colors">
-              forcemajeure.bzh
-            </span>
-            <span className="hidden sm:block text-[9px] sm:text-[10px] font-mono text-[#78716c] uppercase tracking-widest mt-1">
-              CURATED EXECUTIVE & TECH ARCHIVE
-            </span>
-          </div>
+            Home
+          </Link>
 
-          <div className="hidden 2xl:flex items-center gap-1.5 px-2.5 py-1 border border-[#D9CFC7] bg-[#EFE9E3] text-[10px] font-mono text-[#57534e]">
-            <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-600 animate-pulse"></span>
-          </div>
-        </div>
-
-        {/* Navigation Links for Opportunities & Candidates */}
-        <nav className="hidden xl:flex items-center gap-1 font-mono text-xs">
-          <button
-            type="button"
-            onClick={() => navigate('/opportunities?tab=jobs')}
-            className="px-3 py-1.5 border border-transparent hover:border-[#D9CFC7] hover:bg-[#EFE9E3] text-[#1c1917] transition-all font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5"
-          >
-            <Briefcase size={13} className="text-[#8C7A6B]" />
-            <span>Opportunities (Job Seeker)</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={() => navigate('/opportunities?tab=candidates')}
-            className="px-3 py-1.5 border border-transparent hover:border-[#D9CFC7] hover:bg-[#EFE9E3] text-[#1c1917] transition-all font-semibold uppercase tracking-wider text-[11px] flex items-center gap-1.5"
-          >
-            <Users size={13} className="text-[#8C7A6B]" />
-            <span>Candidates (Recruiter)</span>
-          </button>
-        </nav>
-
-        {/* Right Section: Notifications + Saved + Post + My Jobs + Profile (when logged in) */}
-        <div className="flex items-center gap-1.5 sm:gap-3 font-mono text-xs ml-auto">
-
-          {/* Clock (Desktop) */}
-          <div className="hidden xl:block text-[11px] text-[#78716c] border-r border-[#D9CFC7] pr-3">
-            {currentTime}
-          </div>
-
-          {isLoggedIn ? (
+          {isLoggedIn && isRecruiter && (
             <>
-              {/* Notifications Component with Popover (hidden on very small screens, visible in drawer) */}
-              <div className="relative hidden sm:block" ref={notifRef}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsNotifOpen(!isNotifOpen);
-                    setHasUnreadNotif(false);
-                  }}
-                  aria-label="Notifications"
-                  className={`p-2 border transition-colors relative ${isNotifOpen
-                    ? 'border-[#1c1917] bg-[#EFE9E3] text-[#1c1917]'
-                    : 'border-[#D9CFC7] bg-[#EFE9E3] text-[#57534e] hover:border-[#1c1917] hover:text-[#1c1917]'
-                    }`}
-                >
-                  <Bell size={14} />
-                  {hasUnreadNotif && (
-                    <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-[#ba1a1a]" />
-                  )}
-                </button>
-
-                {/* Notification Dropdown Panel */}
-                {isNotifOpen && (
-                  <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] sm:w-96 max-w-sm sm:max-w-md bg-[#F9F8F6] border border-[#D9CFC7] shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="flex items-center justify-between pb-2 border-b border-[#D9CFC7] mb-2">
-                      <span className="font-heading text-xs font-bold text-[#1c1917] uppercase tracking-wider">
-                        Archive Dispatches
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (showToast) showToast('All notifications marked as read');
-                          setIsNotifOpen(false);
-                        }}
-                        className="text-[10px] text-[#78716c] hover:text-[#1c1917]"
-                      >
-                        Mark all read
-                      </button>
-                    </div>
-
-                    <div className="flex flex-col divide-y divide-[#D9CFC7]/50 max-h-72 overflow-y-auto">
-                      {notifications.map((n) => (
-                        <div key={n.id} className="py-2.5 px-1 hover:bg-[#EFE9E3] transition-colors cursor-pointer">
-                          <div className="flex items-center justify-between text-[11px] mb-1">
-                            <span className="font-bold text-[#1c1917]">{n.title}</span>
-                            <span className="text-[10px] text-[#78716c]">{n.time}</span>
-                          </div>
-                          <p className="text-[11px] font-sans text-[#57534e] leading-snug">
-                            {n.desc}
-                          </p>
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="pt-2 mt-2 border-t border-[#D9CFC7] text-center">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsNotifOpen(false);
-                          if (showToast) showToast('Opening dispatch archives...');
-                        }}
-                        className="text-[10px] font-bold text-[#6b5c47] hover:text-[#1c1917] uppercase tracking-wider"
-                      >
-                        View Full Dispatch History →
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Saved Component */}
-              <button
-                type="button"
-                onClick={onOpenSaved}
-                className="fm-btn py-1.5 px-2.5 sm:px-3 text-[11px] flex items-center gap-1.5 relative border-[#D9CFC7] hover:border-[#1c1917] bg-[#EFE9E3] text-[#1c1917]"
+              <Link
+                to="/dashboard"
+                className={`px-3 py-1.5 transition-colors font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive('/dashboard')
+                    ? 'bg-[#1c1917] text-[#F9F8F6]'
+                    : 'text-[#57534e] hover:text-[#1c1917] hover:bg-[#EFE9E3]'
+                  }`}
               >
-                <Bookmark
-                  size={13}
-                  className={savedJobsCount > 0 ? "fill-[#C9B59C] text-[#6b5c47]" : "text-[#57534e]"}
-                />
-                <span className="hidden sm:inline">SAVED</span>
-                {savedJobsCount > 0 && (
-                  <span className="bg-[#C9B59C] text-[#1c1917] font-bold px-1.5 py-0.2 text-[10px] ml-0.5">
-                    {savedJobsCount}
-                  </span>
-                )}
-              </button>
+                <LayoutDashboard size={13} />
+                <span>Dashboard</span>
+              </Link>
 
-              {/* Post Opening Button */}
-              {onOpenPostModal && (
-                <button
-                  type="button"
-                  onClick={onOpenPostModal}
-                  className="hidden md:inline-flex fm-btn fm-btn-primary py-1.5 px-3 text-[11px] items-center gap-1.5"
-                >
-                  <PlusCircle size={13} />
-                  <span>POST</span>
-                </button>
-              )}
-
-              {/* Recruiter Manage Jobs Button */}
-              {onOpenManageJobs && (
-                <button
-                  type="button"
-                  onClick={onOpenManageJobs}
-                  className="hidden lg:inline-flex fm-btn py-1.5 px-3 text-[11px] items-center gap-1.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917]"
-                  title="Kelola Lowongan Anda (/api/jobs/mine)"
-                >
-                  {/* <Briefcase size={12} className="text-[#6b5c47]" /> */}
-                  <span>MY JOBS</span>
-                </button>
-              )}
-
-              {/* Profile Component with Popover */}
-              <div className="relative" ref={profileRef}>
-                <button
-                  type="button"
-                  onClick={() => setIsProfileOpen(!isProfileOpen)}
-                  className="flex items-center gap-1.5 p-0.5 border border-[#D9CFC7] hover:border-[#1c1917] bg-[#EFE9E3] transition-all"
-                  aria-label="User Profile"
-                >
-                  <img
-                    alt="Aura Candidate Profile"
-                    className="w-7 h-7 object-cover"
-                    src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNKAti8C5geDQ8G07eu5sJkBXwFCANxx6UsqXNvOwIVtX1CYOh38dI0vghKlJyWsTEpy1jQj1MrwWs5kndmlSG-PdMghwtVhILItpMnpcWqFhRYKuovgIxpQ1th2xX7K03dhRIlNGDNSa50TBQ1cgeKxGa6LGYxox7X2sYhUTFOHT0igbgux7nGqUR2y-Wa_3tEQvcxM4ConQDQegm6r34E5LFA9kyN5H70IAQG9H-DN3tDuDe0ZLp"
-                  />
-                  <ChevronDown size={11} className="text-[#78716c] mr-1 hidden sm:inline" />
-                </button>
-
-                {/* Profile Dropdown Panel */}
-                {isProfileOpen && (
-                  <div className="absolute right-0 mt-2 w-[calc(100vw-2rem)] max-w-xs sm:w-64 bg-[#F9F8F6] border border-[#D9CFC7] shadow-xl p-3 z-50 animate-in fade-in zoom-in-95 duration-100">
-                    <div className="flex items-center gap-3 pb-3 border-b border-[#D9CFC7]">
-                      <img
-                        alt="Profile"
-                        className="w-10 h-10 object-cover border border-[#D9CFC7]"
-                        src="https://lh3.googleusercontent.com/aida-public/AB6AXuCNKAti8C5geDQ8G07eu5sJkBXwFCANxx6UsqXNvOwIVtX1CYOh38dI0vghKlJyWsTEpy1jQj1MrwWs5kndmlSG-PdMghwtVhILItpMnpcWqFhRYKuovgIxpQ1th2xX7K03dhRIlNGDNSa50TBQ1cgeKxGa6LGYxox7X2sYhUTFOHT0igbgux7nGqUR2y-Wa_3tEQvcxM4ConQDQegm6r34E5LFA9kyN5H70IAQG9H-DN3tDuDe0ZLp"
-                      />
-                      <div className="flex flex-col min-w-0">
-                        <span className="font-bold text-[#1c1917] truncate text-xs">Alex Sterling</span>
-                        <span className="text-[10px] text-[#78716c] truncate">Staff Spatial Designer</span>
-                        <span className="text-[9px] text-[#6b5c47] font-semibold mt-0.5">● Aura Verified Dossier</span>
-                      </div>
-                    </div>
-
-                    <div className="py-2 flex flex-col gap-1 text-[11px]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          if (showToast) showToast('Opening Candidate Dossier...');
-                        }}
-                        className="flex items-center gap-2 p-1.5 hover:bg-[#EFE9E3] text-[#1c1917] text-left transition-colors"
-                      >
-                        <FileText size={13} className="text-[#6b5c47]" />
-                        <span>Curated Dossier</span>
-                      </button>
-
-                      {onOpenManageJobs && (
-                        <button
-                          type="button"
-                          onClick={() => {
-                            setIsProfileOpen(false);
-                            onOpenManageJobs();
-                          }}
-                          className="flex items-center gap-2 p-1.5 hover:bg-[#EFE9E3] text-[#1c1917] text-left transition-colors font-bold text-[#6b5c47]"
-                        >
-                          {/* <Briefcase size={13} className="text-[#6b5c47]" /> */}
-                          <span>Kelola Lowongan (/mine)</span>
-                        </button>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          onOpenSaved && onOpenSaved();
-                        }}
-                        className="flex items-center gap-2 p-1.5 hover:bg-[#EFE9E3] text-[#1c1917] text-left transition-colors"
-                      >
-                        <Bookmark size={13} className="text-[#6b5c47]" />
-                        <span>Saved Bookmarks ({savedJobsCount})</span>
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          if (showToast) showToast('Opening Profile Preferences...');
-                        }}
-                        className="flex items-center gap-2 p-1.5 hover:bg-[#EFE9E3] text-[#1c1917] text-left transition-colors"
-                      >
-                        <SlidersHorizontal size={13} className="text-[#6b5c47]" />
-                        <span>Comp & Privacy Settings</span>
-                      </button>
-                    </div>
-
-                    <div className="pt-2 border-t border-[#D9CFC7]">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setIsProfileOpen(false);
-                          if (onLogout) onLogout();
-                          if (showToast) showToast('Signed out of Aura Talent Archive.');
-                        }}
-                        className="w-full flex items-center justify-between p-1.5 text-[11px] text-[#ba1a1a] hover:bg-[#ffdad6]/40 transition-colors"
-                      >
-                        <span>Sign Out</span>
-                        <LogOut size={12} />
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
+              <Link
+                to="/opportunities?tab=candidates"
+                className={`px-3 py-1.5 transition-colors font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive('/opportunities?tab=candidates')
+                    ? 'bg-[#1c1917] text-[#F9F8F6]'
+                    : 'text-[#57534e] hover:text-[#1c1917] hover:bg-[#EFE9E3]'
+                  }`}
+              >
+                <Users size={13} />
+                <span>Candidate Bench</span>
+              </Link>
             </>
-          ) : (
-            /* When NOT logged in: Show Connect / Sign In */
-            <button
-              type="button"
-              onClick={() => {
-                if (onLogin) onLogin();
-                if (showToast) showToast('Signed in successfully.');
-              }}
-              className="fm-btn fm-btn-primary py-1.5 px-3.5 text-[11px] flex items-center gap-1.5"
+          )}
+
+          {(!isLoggedIn || isJobSeeker) && (
+            <Link
+              to="/opportunities?tab=jobs"
+              className={`px-3 py-1.5 transition-colors font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive('/opportunities?tab=jobs')
+                  ? 'bg-[#1c1917] text-[#F9F8F6]'
+                  : 'text-[#57534e] hover:text-[#1c1917] hover:bg-[#EFE9E3]'
+                }`}
+            >
+              <Briefcase size={13} />
+              <span>Job Opportunities</span>
+            </Link>
+          )}
+
+          {isLoggedIn && isJobSeeker && (
+            <Link
+              to="/applications"
+              className={`px-3 py-1.5 transition-colors font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive('/applications')
+                  ? 'bg-[#1c1917] text-[#F9F8F6]'
+                  : 'text-[#57534e] hover:text-[#1c1917] hover:bg-[#EFE9E3]'
+                }`}
+            >
+              <FileText size={13} />
+              <span>My Applications</span>
+            </Link>
+          )}
+
+          {isLoggedIn && (
+            <Link
+              to="/profile"
+              className={`px-3 py-1.5 transition-colors font-bold uppercase tracking-wider flex items-center gap-1.5 ${isActive('/profile')
+                  ? 'bg-[#1c1917] text-[#F9F8F6]'
+                  : 'text-[#57534e] hover:text-[#1c1917] hover:bg-[#EFE9E3]'
+                }`}
             >
               <User size={13} />
-              <span>SIGN IN</span>
+              <span>Profile</span>
+            </Link>
+          )}
+        </nav>
+
+        {/* Desktop User Actions */}
+        <div className="hidden md:flex items-center gap-2 sm:gap-3 text-xs">
+          {isLoggedIn && isJobSeeker && onOpenSaved && (
+            <button
+              type="button"
+              onClick={onOpenSaved}
+              className="p-1.5 sm:px-2.5 sm:py-1 border border-[#D9CFC7] bg-[#EFE9E3] hover:border-[#1c1917] text-[#1c1917] flex items-center gap-1 text-[11px]"
+              title="Saved Jobs"
+            >
+              <Bookmark size={13} />
+              <span className="hidden sm:inline">Saved</span>
+              <span className="bg-[#1c1917] text-[#F9F8F6] text-[9px] px-1.5 py-0.2 font-bold">
+                {savedJobsCount}
+              </span>
             </button>
           )}
 
-          {/* Mobile Menu Hamburger Button */}
+          {isLoggedIn ? (
+            <div className="flex items-center gap-2 pl-2 border-l border-[#D9CFC7]">
+              <div className="hidden lg:flex flex-col text-right">
+                <span className="text-[#1c1917] font-bold text-xs max-w-[130px] truncate">
+                  {user?.name}
+                </span>
+                <span className={`text-[9px] font-bold uppercase ${isRecruiter ? 'text-[#6b5c47]' : 'text-[#78716c]'}`}>
+                  {isRecruiter ? 'IT Recruiter' : 'IT Job Seeker'}
+                </span>
+              </div>
+
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="px-2.5 py-1.5 border border-[#D9CFC7] bg-[#EFE9E3] text-[#57534e] hover:text-red-700 hover:border-red-300 text-[11px] font-bold uppercase tracking-wider flex items-center gap-1.5"
+                title="Log out of account"
+              >
+                <LogOut size={12} />
+                <span>Logout</span>
+              </button>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2">
+              <Link
+                to="/login"
+                className="px-3 py-1.5 border border-[#D9CFC7] bg-[#EFE9E3] hover:border-[#1c1917] text-[#1c1917] font-bold uppercase tracking-wider text-[11px]"
+              >
+                Login
+              </Link>
+              <Link
+                to="/register"
+                className="px-3 py-1.5 bg-[#1c1917] hover:bg-[#C9B59C] hover:text-[#1c1917] text-[#F9F8F6] font-bold uppercase tracking-wider text-[11px] transition-all"
+              >
+                Sign Up
+              </Link>
+            </div>
+          )}
+        </div>
+
+        {/* Mobile Header Right (Saved counter + Hamburger button) */}
+        <div className="flex md:hidden items-center gap-2">
+          {isLoggedIn && isJobSeeker && onOpenSaved && (
+            <button
+              type="button"
+              onClick={onOpenSaved}
+              className="p-1.5 border border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] flex items-center gap-1 text-[11px]"
+              title="Saved Jobs"
+            >
+              <Bookmark size={13} />
+              <span className="bg-[#1c1917] text-[#F9F8F6] text-[9px] px-1 font-bold">
+                {savedJobsCount}
+              </span>
+            </button>
+          )}
+
+          {isLoggedIn && (
+            <span className={`text-[10px] px-2 py-0.5 font-bold uppercase ${isRecruiter ? 'bg-[#1c1917] text-[#F9F8F6]' : 'bg-[#C9B59C] text-[#1c1917]'
+              }`}>
+              {isRecruiter ? 'RECRUITER' : 'SEEKER'}
+            </span>
+          )}
+
           <button
             type="button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            className="lg:hidden p-1.5 border border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917]"
-            aria-label="Toggle navigation menu"
+            className="p-2 border border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] hover:border-[#1c1917]"
+            aria-label="Toggle mobile menu"
           >
             {isMobileMenuOpen ? <X size={16} /> : <Menu size={16} />}
           </button>
-
         </div>
 
       </div>
 
-      {/* Mobile Drawer (Menu & Quick Actions) */}
+      {/* Mobile Drawer Menu */}
       {isMobileMenuOpen && (
-        <div className="lg:hidden border-t border-[#D9CFC7] bg-[#F9F8F6] px-4 py-4 space-y-3 font-mono text-xs animate-in slide-in-from-top-2">
-          {/* Mobile Navigation Links */}
-          <div className="flex flex-col gap-1 pb-2 border-b border-[#D9CFC7]">
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                navigate('/opportunities?tab=jobs');
-              }}
-              className="text-left px-2 py-2 hover:bg-[#EFE9E3] font-bold text-[#1c1917] flex items-center gap-2"
-            >
-              <Briefcase size={14} className="text-[#8C7A6B]" />
-              <span>Job Opportunities (Job Seeker)</span>
-            </button>
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                navigate('/opportunities?tab=candidates');
-              }}
-              className="text-left px-2 py-2 hover:bg-[#EFE9E3] font-bold text-[#1c1917] flex items-center gap-2"
-            >
-              <Users size={14} className="text-[#8C7A6B]" />
-              <span>Candidate Opportunities (Recruiter)</span>
-            </button>
-          </div>
+        <div className="md:hidden border-t border-[#D9CFC7] bg-[#F9F8F6] px-4 py-4 space-y-3 shadow-lg animate-in slide-in-from-top-2 duration-150">
+          {isLoggedIn && (
+            <div className="p-3 bg-[#EFE9E3] border border-[#D9CFC7] mb-2 flex items-center justify-between">
+              <div>
+                <span className="text-xs font-bold text-[#1c1917] block truncate">
+                  {user?.name}
+                </span>
+                <span className="text-[10px] text-[#78716c] font-mono">
+                  {user?.email}
+                </span>
+              </div>
+              <span className={`text-[9px] px-2 py-0.5 font-bold uppercase ${isRecruiter ? 'bg-[#1c1917] text-[#F9F8F6]' : 'bg-[#C9B59C] text-[#1c1917]'
+                }`}>
+                {isRecruiter ? 'Recruiter' : 'Job Seeker'}
+              </span>
+            </div>
+          )}
 
-          {/* Mobile Quick Actions (Post, My Jobs, Saved) */}
-          <div className="grid grid-cols-2 gap-2 pt-1">
-            {onOpenPostModal && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onOpenPostModal();
-                }}
-                className="fm-btn fm-btn-primary py-2 px-3 text-[11px] flex items-center justify-center gap-1.5"
-              >
-                <PlusCircle size={13} />
-                <span>Pasang Lowongan</span>
-              </button>
+          <nav className="flex flex-col space-y-1 text-xs">
+            <Link
+              to="/"
+              className={`px-3 py-2 font-bold uppercase tracking-wider transition-colors ${isActive('/') ? 'bg-[#1c1917] text-[#F9F8F6]' : 'text-[#57534e] hover:bg-[#EFE9E3]'
+                }`}
+            >
+              Home
+            </Link>
+
+            {isLoggedIn && isRecruiter && (
+              <>
+                <Link
+                  to="/dashboard"
+                  className={`px-3 py-2 font-bold uppercase tracking-wider flex items-center gap-2 transition-colors ${isActive('/dashboard') ? 'bg-[#1c1917] text-[#F9F8F6]' : 'text-[#57534e] hover:bg-[#EFE9E3]'
+                    }`}
+                >
+                  <LayoutDashboard size={14} />
+                  <span>Dashboard</span>
+                </Link>
+
+                <Link
+                  to="/opportunities?tab=candidates"
+                  className={`px-3 py-2 font-bold uppercase tracking-wider flex items-center gap-2 transition-colors ${isActive('/opportunities?tab=candidates') ? 'bg-[#1c1917] text-[#F9F8F6]' : 'text-[#57534e] hover:bg-[#EFE9E3]'
+                    }`}
+                >
+                  <Users size={14} />
+                  <span>Candidate Bench</span>
+                </Link>
+
+                <Link
+                  to="/jobs/create"
+                  className="px-3 py-2 font-bold uppercase tracking-wider flex items-center gap-2 text-[#57534e] hover:bg-[#EFE9E3]"
+                >
+                  <Plus size={14} />
+                  <span>Post a Job</span>
+                </Link>
+              </>
             )}
 
-            {onOpenManageJobs && (
-              <button
-                type="button"
-                onClick={() => {
-                  setIsMobileMenuOpen(false);
-                  onOpenManageJobs();
-                }}
-                className="fm-btn py-2 px-3 text-[11px] flex items-center justify-center gap-1.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917]"
+            {(!isLoggedIn || isJobSeeker) && (
+              <Link
+                to="/opportunities?tab=jobs"
+                className={`px-3 py-2 font-bold uppercase tracking-wider flex items-center gap-2 transition-colors ${isActive('/opportunities?tab=jobs') ? 'bg-[#1c1917] text-[#F9F8F6]' : 'text-[#57534e] hover:bg-[#EFE9E3]'
+                  }`}
               >
-                <Briefcase size={12} className="text-[#6b5c47]" />
-                <span>Kelola (/mine)</span>
-              </button>
+                <Briefcase size={14} />
+                <span>Job Opportunities</span>
+              </Link>
             )}
 
-            <button
-              type="button"
-              onClick={() => {
-                setIsMobileMenuOpen(false);
-                onOpenSaved && onOpenSaved();
-              }}
-              className="col-span-2 fm-btn py-2 px-3 text-[11px] flex items-center justify-center gap-1.5 border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917]"
-            >
-              <Bookmark size={13} className={savedJobsCount > 0 ? "fill-[#C9B59C] text-[#6b5c47]" : "text-[#57534e]"} />
-              <span>Lowongan Tersimpan ({savedJobsCount})</span>
-            </button>
-          </div>
+            {isLoggedIn && isJobSeeker && (
+              <Link
+                to="/applications"
+                className={`px-3 py-2 font-bold uppercase tracking-wider flex items-center gap-2 transition-colors ${isActive('/applications') ? 'bg-[#1c1917] text-[#F9F8F6]' : 'text-[#57534e] hover:bg-[#EFE9E3]'
+                  }`}
+              >
+                <FileText size={14} />
+                <span>My Applications</span>
+              </Link>
+            )}
 
-          <div className="pt-2 border-t border-[#D9CFC7] flex items-center justify-between text-[10px] text-[#78716c]">
-            <span>{currentTime || 'JAKARTA / UTC+7'}</span>
-            <span>INDEX ACTIVE • ISSUE Nº 42</span>
+            {isLoggedIn && (
+              <Link
+                to="/profile"
+                className={`px-3 py-2 font-bold uppercase tracking-wider flex items-center gap-2 transition-colors ${isActive('/profile') ? 'bg-[#1c1917] text-[#F9F8F6]' : 'text-[#57534e] hover:bg-[#EFE9E3]'
+                  }`}
+              >
+                <User size={14} />
+                <span>Profile</span>
+              </Link>
+            )}
+          </nav>
+
+          <div className="pt-3 border-t border-[#D9CFC7]">
+            {isLoggedIn ? (
+              <button
+                type="button"
+                onClick={handleLogout}
+                className="w-full py-2.5 px-3 border border-[#D9CFC7] bg-[#EFE9E3] text-[#ba1a1a] hover:bg-red-50 text-xs font-bold uppercase tracking-wider flex items-center justify-center gap-2"
+              >
+                <LogOut size={13} />
+                <span>Log Out</span>
+              </button>
+            ) : (
+              <div className="grid grid-cols-2 gap-2">
+                <Link
+                  to="/login"
+                  className="py-2 px-3 text-center border border-[#D9CFC7] bg-[#EFE9E3] text-[#1c1917] font-bold uppercase text-xs"
+                >
+                  Login
+                </Link>
+                <Link
+                  to="/register"
+                  className="py-2 px-3 text-center bg-[#1c1917] text-[#F9F8F6] font-bold uppercase text-xs"
+                >
+                  Sign Up
+                </Link>
+              </div>
+            )}
           </div>
         </div>
       )}
-=======
-export default function Header({
-  user,
-  onLogout,
-  currentView = 'profile',
-  onChangeView
-}) {
-  return (
-    <header className="w-full bg-[#F9F8F6] border-b border-[#D9CFC7] max-w-full overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 sm:py-5 flex flex-col sm:flex-row items-center justify-between gap-4">
-
-        <div
-          onClick={() => onChangeView && onChangeView('profile')}
-          className="flex flex-col cursor-pointer items-center sm:items-start text-center sm:text-left"
-        >
-          <h1 className="font-heading text-xl sm:text-2xl font-bold tracking-tight text-[#1c1917] hover:text-[#C9B59C] transition-colors leading-none">
-            forcemajeure.bzh
-          </h1>
-          <span className="text-[9px] sm:text-[10px] font-mono text-[#57534e] uppercase tracking-widest mt-1">
-            CAREER NETWORK & AUTH PORTAL
-          </span>
-        </div>
-        <div className="flex items-center gap-3 sm:gap-4 font-mono text-xs">
-          {user ? (
-            <>
-              <div className="border border-[#1c1917] bg-[#C9B59C] text-[#1c1917] font-mono text-[11px] px-3 py-1 font-bold uppercase tracking-wider">
-                ROLE: {user.role ? user.role.replace('_', ' ') : 'JOB SEEKER'}
-              </div>
-
-              <div className="flex items-center gap-2 pl-3 border-l border-[#D9CFC7]">
-                <span className="text-[#1c1917] font-bold truncate max-w-[120px]">{user.name}</span>
-                <button
-                  type="button"
-                  onClick={onLogout}
-                  className="px-2.5 py-1 border border-[#D9CFC7] text-[#57534e] hover:text-[#1c1917] hover:border-[#1c1917] bg-[#EFE9E3] font-bold text-xs"
-                >
-                  LOGOUT
-                </button>
-              </div>
-            </>
-          ) : (
-            <button
-              type="button"
-              onClick={() => onChangeView && onChangeView('auth')}
-              className={`px-3 py-1.5 border border-[#1c1917] font-bold uppercase tracking-wider text-[11px] transition-all ${currentView === 'auth' ? 'bg-[#1c1917] text-[#F9F8F6]' : 'bg-[#EFE9E3] text-[#1c1917] hover:bg-[#D9CFC7]'
-                }`}
-            >
-              LOGIN / REGISTER
-            </button>
-          )}
-        </div>
-
-      </div>
->>>>>>> feature/auth-system
     </header>
   );
 }

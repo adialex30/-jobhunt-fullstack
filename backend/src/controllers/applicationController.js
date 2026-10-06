@@ -4,12 +4,17 @@ const { sendSuccess, sendError } = require('../utils/apiResponse');
 
 const VALID_APPLICATION_STATUSES = ['pending', 'reviewed', 'rejected'];
 
-/**
- * Format satu row lamaran agar lebih rapih & terstruktur
- */
+const parseJobId = (rawId) => {
+  let id = parseInt(rawId, 10);
+  if (isNaN(id) && typeof rawId === 'string' && rawId.toUpperCase().startsWith('AURA-')) {
+    const extracted = parseInt(rawId.replace(/^AURA-10*/i, '').replace(/^AURA-0*/i, ''), 10);
+    if (!isNaN(extracted)) id = extracted;
+  }
+  return id;
+};
+
 const formatApplicationData = (raw) => {
   if (!raw) return null;
-
   return {
     id: raw.id,
     job_id: raw.job_id,
@@ -17,8 +22,6 @@ const formatApplicationData = (raw) => {
     cover_letter: raw.cover_letter || null,
     status: raw.status,
     applied_at: raw.applied_at,
-
-    // Nested Job Information
     job: {
       id: raw.job_id,
       title: raw.job_title || raw.title,
@@ -35,8 +38,6 @@ const formatApplicationData = (raw) => {
         email: raw.recruiter_email || null
       }
     },
-
-    // Nested Applicant Information (if available)
     ...(raw.applicant_name ? {
       applicant: {
         id: raw.applicant_id,
@@ -45,8 +46,6 @@ const formatApplicationData = (raw) => {
         member_since: raw.applicant_created_at || null
       }
     } : {}),
-
-    // Backward-compatibility aliases
     job_title: raw.job_title || raw.title,
     job_company: raw.job_company || raw.company,
     job_location: raw.job_location || raw.location || null,
@@ -57,58 +56,46 @@ const formatApplicationData = (raw) => {
 };
 
 const ApplicationController = {
-  // POST /api/jobs/:id/apply - Lamar pekerjaan (Auth: Job Seeker)
   async applyJob(req, res, next) {
     try {
-      const jobId = parseInt(req.params.id, 10);
+      const jobId = parseJobId(req.params.id);
       if (isNaN(jobId)) {
         return sendError(res, {
-          statusCode: 400,
-          message: 'ID lowongan tidak valid. Harap berikan nomor ID yang benar.'
+          statusCode: 404,
+          message: 'Job opening not found.'
         });
       }
-
-      // Check if job exists
       const job = await JobModel.findById(jobId);
       if (!job) {
         return sendError(res, {
           statusCode: 404,
-          message: 'Lowongan pekerjaan tidak ditemukan.'
+          message: 'Job opening not found.'
         });
       }
-
-      // Check if job is still active
       if (!job.is_active) {
         return sendError(res, {
           statusCode: 400,
-          message: 'Lowongan pekerjaan ini sudah ditutup atau tidak aktif menerima lamaran baru.'
+          message: 'This job opening is closed and no longer accepting applications.'
         });
       }
-
       const applicantId = req.user.id;
-
-      // Check if user has already applied
       const alreadyApplied = await ApplicationModel.hasAlreadyApplied(jobId, applicantId);
       if (alreadyApplied) {
         return sendError(res, {
           statusCode: 400,
-          message: 'Anda sudah melamar pekerjaan ini sebelumnya. Tidak diperkenankan melamar ganda.'
+          message: 'You have already applied for this job.'
         });
       }
-
       const { cover_letter } = req.body;
-
       const newApplicationId = await ApplicationModel.create({
         job_id: jobId,
         applicant_id: applicantId,
         cover_letter: cover_letter ? cover_letter.trim() : null
       });
-
       const newApplication = await ApplicationModel.findById(newApplicationId);
-
       return sendSuccess(res, {
         statusCode: 201,
-        message: 'Lamaran pekerjaan berhasil dikirim ke recruiter!',
+        message: 'Job application submitted successfully!',
         data: formatApplicationData(newApplication)
       });
     } catch (error) {
@@ -116,16 +103,14 @@ const ApplicationController = {
     }
   },
 
-  // GET /api/applications/mine - Riwayat lamaran user yang login (Auth: Job Seeker)
   async getMyApplications(req, res, next) {
     try {
       const applicantId = req.user.id;
       const rawApplications = await ApplicationModel.findByApplicantId(applicantId);
       const formattedApplications = rawApplications.map(formatApplicationData);
-
       return sendSuccess(res, {
         statusCode: 200,
-        message: 'Riwayat lamaran pekerjaan berhasil dimuat.',
+        message: 'Application history loaded successfully.',
         data: formattedApplications,
         meta: {
           total_applications: formattedApplications.length,
@@ -137,33 +122,28 @@ const ApplicationController = {
     }
   },
 
-  // GET /api/jobs/:id/applicants - Daftar pelamar untuk job tertentu (Auth: Recruiter)
   async getJobApplicants(req, res, next) {
     try {
-      const jobId = parseInt(req.params.id, 10);
+      const jobId = parseJobId(req.params.id);
       if (isNaN(jobId)) {
         return sendError(res, {
-          statusCode: 400,
-          message: 'ID lowongan tidak valid.'
+          statusCode: 404,
+          message: 'Job opening not found.'
         });
       }
-
       const job = await JobModel.findById(jobId);
       if (!job) {
         return sendError(res, {
           statusCode: 404,
-          message: 'Lowongan pekerjaan tidak ditemukan.'
+          message: 'Job opening not found.'
         });
       }
-
-      // Check if current recruiter owns this job
       if (job.recruiter_id !== req.user.id) {
         return sendError(res, {
           statusCode: 403,
-          message: 'Akses terlarang! Anda bukan pemilik dari lowongan pekerjaan ini.'
+          message: 'Access forbidden. You are not the recruiter for this job.'
         });
       }
-
       const rawApplicants = await ApplicationModel.findByJobId(jobId);
       const formattedApplicants = rawApplicants.map((app) => ({
         id: app.id,
@@ -177,15 +157,13 @@ const ApplicationController = {
           email: app.applicant_email,
           member_since: app.applicant_created_at
         },
-        // Flat compatibility fields
         applicant_id: app.applicant_id,
         applicant_name: app.applicant_name,
         applicant_email: app.applicant_email
       }));
-
       return sendSuccess(res, {
         statusCode: 200,
-        message: `Daftar pelamar untuk lowongan '${job.title}' berhasil dimuat.`,
+        message: `Applicants for '${job.title}' loaded successfully.`,
         data: formattedApplicants,
         meta: {
           job_id: jobId,
@@ -198,49 +176,41 @@ const ApplicationController = {
     }
   },
 
-  // PUT /api/applications/:id - Update status lamaran (Auth: Recruiter)
   async updateApplicationStatus(req, res, next) {
     try {
       const applicationId = parseInt(req.params.id, 10);
       if (isNaN(applicationId)) {
         return sendError(res, {
           statusCode: 400,
-          message: 'ID lamaran tidak valid.'
+          message: 'Invalid application ID.'
         });
       }
-
       const { status } = req.body;
       if (!status || !VALID_APPLICATION_STATUSES.includes(status.trim().toLowerCase())) {
         return sendError(res, {
           statusCode: 400,
-          message: `Status tidak valid. Harus salah satu dari: ${VALID_APPLICATION_STATUSES.join(', ')}`
+          message: `Invalid status. Must be one of: ${VALID_APPLICATION_STATUSES.join(', ')}`
         });
       }
-
       const normalizedStatus = status.trim().toLowerCase();
-
       const application = await ApplicationModel.findById(applicationId);
       if (!application) {
         return sendError(res, {
           statusCode: 404,
-          message: 'Lamaran pekerjaan tidak ditemukan.'
+          message: 'Job application not found.'
         });
       }
-
-      // Verify that this recruiter is the owner of the job being applied to
       if (application.job_recruiter_id !== req.user.id) {
         return sendError(res, {
           statusCode: 403,
-          message: 'Akses terlarang! Anda tidak berwenang memperbarui status lamaran untuk lowongan ini.'
+          message: 'Access forbidden. You are not authorized to update this application.'
         });
       }
-
       await ApplicationModel.updateStatus(applicationId, normalizedStatus);
       const updatedApplication = await ApplicationModel.findById(applicationId);
-
       return sendSuccess(res, {
         statusCode: 200,
-        message: `Status lamaran berhasil diperbarui menjadi '${normalizedStatus}'.`,
+        message: `Application status updated to '${normalizedStatus}'.`,
         data: formatApplicationData(updatedApplication)
       });
     } catch (error) {
@@ -248,15 +218,13 @@ const ApplicationController = {
     }
   },
 
-  // GET /api/applications/dashboard - Ringkasan Recruiter: total jobs posted, total pelamar
   async getRecruiterDashboard(req, res, next) {
     try {
       const recruiterId = req.user.id;
       const stats = await ApplicationModel.getRecruiterSummary(recruiterId);
-
       return sendSuccess(res, {
         statusCode: 200,
-        message: 'Ringkasan data dashboard recruiter berhasil dimuat.',
+        message: 'Recruiter dashboard summary loaded successfully.',
         data: {
           total_jobs_posted: stats.total_jobs_posted,
           total_applicants: stats.total_applicants,
@@ -265,7 +233,6 @@ const ApplicationController = {
             reviewed: stats.reviewed_count,
             rejected: stats.rejected_count
           },
-          // Flat compatibility
           pending_count: stats.pending_count,
           reviewed_count: stats.reviewed_count,
           rejected_count: stats.rejected_count
@@ -276,39 +243,33 @@ const ApplicationController = {
     }
   },
 
-  // GET /api/applications/:id - Detail satu lamaran
   async getApplicationById(req, res, next) {
     try {
       const applicationId = parseInt(req.params.id, 10);
       if (isNaN(applicationId)) {
         return sendError(res, {
           statusCode: 400,
-          message: 'ID lamaran tidak valid.'
+          message: 'Invalid application ID.'
         });
       }
-
       const application = await ApplicationModel.findById(applicationId);
       if (!application) {
         return sendError(res, {
           statusCode: 404,
-          message: 'Lamaran pekerjaan tidak ditemukan.'
+          message: 'Job application not found.'
         });
       }
-
-      // Allow access if applicant or recruiter of the job
       const isApplicant = req.user && req.user.id === application.applicant_id;
       const isRecruiter = req.user && req.user.id === application.job_recruiter_id;
-
       if (!isApplicant && !isRecruiter) {
         return sendError(res, {
           statusCode: 403,
-          message: 'Akses terlarang! Anda tidak memiliki izin untuk melihat lamaran ini.'
+          message: 'Access forbidden. You do not have permission to view this application.'
         });
       }
-
       return sendSuccess(res, {
         statusCode: 200,
-        message: 'Detail data lamaran pekerjaan berhasil dimuat.',
+        message: 'Job application details loaded successfully.',
         data: formatApplicationData(application)
       });
     } catch (error) {

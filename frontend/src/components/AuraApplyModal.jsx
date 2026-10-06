@@ -1,24 +1,33 @@
 import React, { useState } from 'react';
-import { X, Send, CheckCircle2, ShieldCheck, Briefcase } from 'lucide-react';
+import { X, Send, CheckCircle2, ShieldCheck, Briefcase, AlertCircle } from 'lucide-react';
+import { applicationService } from '../services/applicationService';
 
 export default function AuraApplyModal({ job, onClose, onConfirm }) {
   const [personalNote, setPersonalNote] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
 
   if (!job) return null;
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setIsSubmitting(true);
-    setTimeout(() => {
-      setIsSubmitting(false);
+    setErrorMessage(null);
+
+    try {
+      await applicationService.applyJob(job.id, { cover_letter: personalNote });
       setSuccess(true);
       setTimeout(() => {
         onConfirm(job.company);
         onClose();
       }, 1400);
-    }, 900);
+    } catch (err) {
+      console.error('Error applying to job:', err);
+      setErrorMessage(err.message || 'Failed to submit application.');
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -27,7 +36,7 @@ export default function AuraApplyModal({ job, onClose, onConfirm }) {
         <button
           onClick={onClose}
           className="absolute top-4 right-4 sm:top-5 sm:right-5 p-1.5 text-[#78716c] hover:text-[#1c1917] transition-colors"
-          aria-label="Tutup"
+          aria-label="Close"
         >
           <X size={18} />
         </button>
@@ -36,10 +45,10 @@ export default function AuraApplyModal({ job, onClose, onConfirm }) {
           <div className="text-center py-8 sm:py-10 space-y-3">
             <CheckCircle2 size={44} className="mx-auto text-emerald-700 animate-in zoom-in-50 duration-300" />
             <h3 className="font-heading text-xl font-bold text-[#1c1917]">
-              Lamaran Berhasil Terkirim
+              Application Sent Successfully
             </h3>
             <p className="font-sans text-xs text-[#57534e] max-w-sm mx-auto leading-relaxed">
-              Berkas dossier profil Anda telah diteruskan langsung ke tim rekrutmen <strong className="text-[#1c1917]">{job.company}</strong>.
+              Your profile and dossier have been delivered directly to the hiring team at <strong className="text-[#1c1917]">{job.company}</strong>.
             </p>
           </div>
         ) : (
@@ -48,37 +57,44 @@ export default function AuraApplyModal({ job, onClose, onConfirm }) {
               <div className="flex items-center gap-1.5 text-[#6b5c47] mb-1">
                 <Briefcase size={14} />
                 <span className="text-[10px] uppercase tracking-widest font-semibold">
-                  Kandidat Dispatch
+                  Candidate Dispatch
                 </span>
               </div>
               <h3 className="font-heading text-lg sm:text-xl font-bold text-[#1c1917] leading-snug">
-                Lamar ke {job.company}
+                Apply to {job.company}
               </h3>
               <p className="font-sans text-xs text-[#57534e] mt-0.5">
-                Posisi: <span className="font-bold text-[#1c1917]">{job.title}</span>
+                Role: <span className="font-bold text-[#1c1917]">{job.title}</span>
               </p>
             </div>
+
+            {errorMessage && (
+              <div className="p-3 bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2">
+                <AlertCircle size={15} className="shrink-0 mt-0.5" />
+                <span>{errorMessage}</span>
+              </div>
+            )}
 
             <div className="bg-[#EFE9E3]/70 border border-[#D9CFC7] p-3 space-y-1">
               <div className="flex items-center gap-1.5 text-[#1c1917] font-bold text-[11px]">
                 <ShieldCheck size={14} className="text-[#6b5c47]" />
-                <span>Profil & Portofolio Terverifikasi (98% Match)</span>
+                <span>Direct Application</span>
               </div>
               <p className="font-sans text-[11px] text-[#57534e] leading-relaxed">
-                Resume, rekam jejak, dan ekspektasi kompensasi Anda dilampirkan secara rahasia ke mitra rekrutmen.
+                Your profile and cover note will be sent directly to the hiring team.
               </p>
             </div>
 
             <div>
               <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1c1917] mb-1">
-                Catatan Pengantar (Opsional)
+                Cover Note (Optional)
               </label>
               <textarea
                 rows={3}
-                placeholder="Tuliskan catatan singkat kepada hiring team mengenai motivasi atau relevansi portofolio Anda..."
+                placeholder="Write a brief note to the hiring team about your background, motivation, or key projects..."
                 value={personalNote}
                 onChange={(e) => setPersonalNote(e.target.value)}
-                className="fm-input w-full"
+                className="w-full p-2 bg-[#EFE9E3] border border-[#D9CFC7] focus:border-[#1c1917] text-xs outline-none resize-y"
               />
             </div>
 
@@ -88,7 +104,7 @@ export default function AuraApplyModal({ job, onClose, onConfirm }) {
                 onClick={onClose}
                 className="fm-btn px-4 py-2 border-[#D9CFC7] bg-[#EFE9E3] text-[#57534e] hover:text-[#1c1917] justify-center"
               >
-                Batal
+                Cancel
               </button>
               <button
                 type="submit"
@@ -96,7 +112,7 @@ export default function AuraApplyModal({ job, onClose, onConfirm }) {
                 className="fm-btn fm-btn-primary px-6 py-2 flex items-center justify-center gap-2"
               >
                 <Send size={13} />
-                <span>{isSubmitting ? 'Mengirim...' : 'Kirim Lamaran'}</span>
+                <span>{isSubmitting ? 'Sending...' : 'Submit Application'}</span>
               </button>
             </div>
           </form>
