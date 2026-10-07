@@ -3,7 +3,8 @@ const DEFAULT_API = 'http://127.0.0.1:5000/api';
 
 const getBaseUrl = () => {
   if (import.meta.env.VITE_API_URL) {
-    return import.meta.env.VITE_API_URL;
+    const cleanUrl = import.meta.env.VITE_API_URL.trim().replace(/\/+$/, '');
+    return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
   }
   if (typeof window !== 'undefined') {
     return '/api';

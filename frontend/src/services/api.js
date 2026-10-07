@@ -1,4 +1,11 @@
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const getApiBaseUrl = () => {
+  const envUrl = import.meta.env.VITE_API_URL;
+  if (!envUrl) return 'http://localhost:5000/api';
+  const cleanUrl = envUrl.trim().replace(/\/+$/, '');
+  return cleanUrl.endsWith('/api') ? cleanUrl : `${cleanUrl}/api`;
+};
+
+export const API_BASE_URL = getApiBaseUrl();
 const AUTH_TOKEN_STORAGE_KEY = 'token';
 
 
@@ -27,7 +34,7 @@ const executeApiRequest = async (endpointPath, requestConfig = {}) => {
     return responsePayload;
   } catch (caughtError) {
     if (caughtError.message && caughtError.message.includes('Failed to fetch')) {
-      throw new Error('Unable to connect to the backend server (http://localhost:5000). Please ensure the backend is running.');
+      throw new Error(`Unable to connect to the backend server (${API_BASE_URL}). Please ensure the backend is running and CORS is configured.`);
     }
     throw caughtError;
   }
