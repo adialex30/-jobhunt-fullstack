@@ -1,0 +1,538 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "JobHunt API",
+    "description": "Dokumentasi REST API JobHunt - Platform Pencarian Kerja dan Rekrutmen Terpadu (Job Seeker & Recruiter). Mendukung otentikasi JWT Bearer token, manajemen lowongan kerja, pengajuan lamaran, review pelamar, dan statistik dashboard.",
+    "version": "1.0.0",
+    "contact": {
+      "name": "JobHunt Developer Team"
+    }
+  },
+  "servers": [
+    {
+      "url": "http://localhost:5000",
+      "description": "Development Server (Local)"
+    }
+  ],
+  "tags": [
+    { "name": "Health", "description": "Status kesehatan server dan database" },
+    { "name": "Auth", "description": "Registrasi, login, dan verifikasi sesi pengguna" },
+    { "name": "Jobs", "description": "Manajemen dan pencarian lowongan pekerjaan" },
+    { "name": "Applications", "description": "Pengajuan lamaran kerja dan tracking status pelamar" },
+    { "name": "Users", "description": "Manajemen data profil dan akun pengguna" }
+  ],
+  "paths": {
+    "/api/health": {
+      "get": {
+        "tags": ["Health"],
+        "summary": "Pemeriksaan kesehatan server",
+        "description": "Mengembalikan status aktif server backend dan nama database yang terhubung.",
+        "responses": {
+          "200": {
+            "description": "Server berjalan dengan baik",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "success",
+                  "message": "Server backend jobhunt berjalan dengan baik!",
+                  "database": "jobhunt_db",
+                  "timestamp": "2026-10-07T15:30:00.000Z"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/auth/register": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Registrasi pengguna baru",
+        "description": "Mendaftarkan akun baru sebagai `job_seeker` atau `recruiter`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["name", "email", "password", "role"],
+                "properties": {
+                  "name": { "type": "string", "example": "Budi Santoso" },
+                  "email": { "type": "string", "format": "email", "example": "budi@example.com" },
+                  "password": { "type": "string", "minLength": 6, "example": "password123" },
+                  "role": { "type": "string", "enum": ["job_seeker", "recruiter"], "example": "job_seeker" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Registrasi berhasil",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "success",
+                  "message": "Pendaftaran berhasil!",
+                  "data": {
+                    "id": 12,
+                    "name": "Budi Santoso",
+                    "email": "budi@example.com",
+                    "role": "job_seeker",
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                  }
+                }
+              }
+            }
+          },
+          "400": { "description": "Validasi gagal atau email sudah terdaftar" }
+        }
+      }
+    },
+    "/api/auth/login": {
+      "post": {
+        "tags": ["Auth"],
+        "summary": "Login pengguna",
+        "description": "Otentikasi dengan email dan password untuk menerima JSON Web Token (JWT).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["email", "password"],
+                "properties": {
+                  "email": { "type": "string", "format": "email", "example": "budi@example.com" },
+                  "password": { "type": "string", "example": "password123" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Login berhasil",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "success",
+                  "message": "Login berhasil!",
+                  "data": {
+                    "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+                    "user": {
+                      "id": 1,
+                      "name": "Budi Santoso",
+                      "email": "budi@example.com",
+                      "role": "job_seeker"
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Email atau password tidak valid" }
+        }
+      }
+    },
+    "/api/auth/me": {
+      "get": {
+        "tags": ["Auth"],
+        "summary": "Profil sesi pengguna saat ini",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Data profil pengguna yang sedang login",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "id": 1,
+                    "name": "Budi Santoso",
+                    "email": "budi@example.com",
+                    "role": "job_seeker",
+                    "created_at": "2026-10-01T10:00:00.000Z"
+                  }
+                }
+              }
+            }
+          },
+          "401": { "description": "Token tidak ada atau kedaluwarsa" }
+        }
+      }
+    },
+    "/api/jobs": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Daftar seluruh lowongan pekerjaan aktif",
+        "description": "Mendukung pagination, pencarian kata kunci, filter tipe pekerjaan, dan lokasi.",
+        "parameters": [
+          { "name": "page", "in": "query", "schema": { "type": "integer", "default": 1 }, "description": "Halaman data" },
+          { "name": "limit", "in": "query", "schema": { "type": "integer", "default": 10 }, "description": "Jumlah data per halaman" },
+          { "name": "keyword", "in": "query", "schema": { "type": "string" }, "description": "Cari berdasarkan judul, perusahaan, atau deskripsi" },
+          { "name": "type", "in": "query", "schema": { "type": "string", "enum": ["all", "full-time", "part-time", "contract", "internship"] }, "description": "Tipe pekerjaan" },
+          { "name": "location", "in": "query", "schema": { "type": "string" }, "description": "Filter lokasi" }
+        ],
+        "responses": {
+          "200": {
+            "description": "Daftar lowongan pekerjaan",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "jobs": [
+                      {
+                        "id": 101,
+                        "title": "Senior Frontend Developer",
+                        "company": "Tech Nusantara",
+                        "location": "Jakarta (Remote)",
+                        "type": "full-time",
+                        "salary_min": 15000000,
+                        "salary_max": 25000000,
+                        "created_at": "2026-10-05T08:00:00.000Z"
+                      }
+                    ],
+                    "pagination": { "page": 1, "limit": 10, "total": 24, "totalPages": 3 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["Jobs"],
+        "summary": "Buat lowongan pekerjaan baru (Recruiter)",
+        "security": [{ "BearerAuth": [] }],
+        "description": "Hanya dapat diakses oleh user dengan role `recruiter`. ID recruiter otomatis diambil dari sesi JWT token.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["title", "company", "type", "description"],
+                "properties": {
+                  "title": { "type": "string", "example": "Backend Golang Engineer" },
+                  "company": { "type": "string", "example": "Fintech Global" },
+                  "location": { "type": "string", "example": "Bandung" },
+                  "type": { "type": "string", "enum": ["full-time", "part-time", "contract", "internship"], "example": "full-time" },
+                  "description": { "type": "string", "example": "Bertanggung jawab atas microservices backend..." },
+                  "requirements": { "type": "string", "example": "Menguasai Go, PostgreSQL, Redis, Docker" },
+                  "salary_min": { "type": "number", "example": 12000000 },
+                  "salary_max": { "type": "number", "example": 20000000 }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Lowongan berhasil diterbitkan" },
+          "400": { "description": "Input tidak valid" },
+          "403": { "description": "Akses ditolak (bukan recruiter)" }
+        }
+      }
+    },
+    "/api/jobs/stats": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Statistik ringkasan lowongan pekerjaan",
+        "description": "Mengembalikan total lowongan aktif, jumlah perusahaan, dan rincian per tipe lowongan.",
+        "responses": {
+          "200": {
+            "description": "Statistik berhasil dimuat",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "totalJobs": 42,
+                    "totalCompanies": 18,
+                    "typesBreakdown": [
+                      { "type": "full-time", "count": 28 },
+                      { "type": "contract", "count": 10 },
+                      { "type": "internship", "count": 4 }
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/jobs/mine": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Daftar lowongan milik recruiter yang sedang login",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Daftar lowongan khusus milik recruiter login" },
+          "403": { "description": "Akses ditolak (bukan recruiter)" }
+        }
+      }
+    },
+    "/api/jobs/{id}": {
+      "get": {
+        "tags": ["Jobs"],
+        "summary": "Detail lowongan berdasarkan ID",
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "ID numerik atau format AURA-10" }
+        ],
+        "responses": {
+          "200": { "description": "Detail lowongan ditemukan" },
+          "404": { "description": "Lowongan tidak ditemukan" }
+        }
+      },
+      "put": {
+        "tags": ["Jobs"],
+        "summary": "Perbarui lowongan (Recruiter pemilik)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": { "type": "string" },
+                  "company": { "type": "string" },
+                  "location": { "type": "string" },
+                  "type": { "type": "string", "enum": ["full-time", "part-time", "contract", "internship"] },
+                  "description": { "type": "string" },
+                  "requirements": { "type": "string" },
+                  "salary_min": { "type": "number" },
+                  "salary_max": { "type": "number" },
+                  "is_active": { "type": "boolean" }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Lowongan berhasil diperbarui" },
+          "403": { "description": "Tidak memiliki hak akses terhadap lowongan ini" },
+          "404": { "description": "Lowongan tidak ditemukan" }
+        }
+      },
+      "delete": {
+        "tags": ["Jobs"],
+        "summary": "Hapus lowongan secara permanen (Recruiter pemilik)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Lowongan berhasil dihapus" },
+          "403": { "description": "Tidak memiliki hak akses menghapus lowongan ini" },
+          "404": { "description": "Lowongan tidak ditemukan" }
+        }
+      }
+    },
+    "/api/jobs/{id}/apply": {
+      "post": {
+        "tags": ["Applications"],
+        "summary": "Mengirimkan lamaran kerja untuk sebuah lowongan (Job Seeker)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" }, "description": "ID Lowongan yang dilamar" }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "cover_letter": { "type": "string", "example": "Saya memiliki pengalaman 4 tahun di React dan tertarik bergabung..." }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": { "description": "Lamaran berhasil terkirim" },
+          "400": { "description": "Pelamar sudah pernah mengajukan lamaran ke lowongan ini" },
+          "403": { "description": "Hanya job seeker yang dapat melamar" }
+        }
+      }
+    },
+    "/api/jobs/{id}/applicants": {
+      "get": {
+        "tags": ["Applications"],
+        "summary": "Melihat daftar pelamar untuk lowongan tertentu (Recruiter pemilik)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "string" } }
+        ],
+        "responses": {
+          "200": { "description": "Daftar pelamar untuk lowongan tersebut" },
+          "403": { "description": "Bukan pemilik lowongan ini" }
+        }
+      }
+    },
+    "/api/applications/mine": {
+      "get": {
+        "tags": ["Applications"],
+        "summary": "Melihat riwayat lamaran saya (Job Seeker)",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": { "description": "Daftar lamaran yang pernah diajukan oleh user yang login" },
+          "403": { "description": "Khusus job seeker" }
+        }
+      }
+    },
+    "/api/applications/dashboard": {
+      "get": {
+        "tags": ["Applications"],
+        "summary": "Metrik dashboard recruiter",
+        "security": [{ "BearerAuth": [] }],
+        "responses": {
+          "200": {
+            "description": "Ringkasan total jobs posted, total applicants, dan breakdown status",
+            "content": {
+              "application/json": {
+                "example": {
+                  "status": "success",
+                  "data": {
+                    "total_jobs_posted": 5,
+                    "total_jobs": 5,
+                    "total_applicants": 14,
+                    "status_breakdown": {
+                      "pending": 8,
+                      "reviewed": 3,
+                      "interview": 2,
+                      "accepted": 1,
+                      "rejected": 0
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{id}": {
+      "get": {
+        "tags": ["Applications"],
+        "summary": "Detail spesifik satu lamaran",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Detail data lamaran" },
+          "404": { "description": "Lamaran tidak ditemukan" }
+        }
+      },
+      "put": {
+        "tags": ["Applications"],
+        "summary": "Memperbarui status lamaran (Recruiter)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": ["status"],
+                "properties": {
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "reviewed", "interview", "accepted", "rejected"],
+                    "example": "interview"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Status lamaran berhasil diperbarui" },
+          "400": { "description": "Status tidak valid" }
+        }
+      }
+    },
+    "/api/users": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Daftar pengguna (Filter berdasarkan role)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "role", "in": "query", "schema": { "type": "string", "enum": ["job_seeker", "recruiter", "admin"] }, "description": "Filter role pengguna" }
+        ],
+        "responses": {
+          "200": { "description": "Daftar pengguna" }
+        }
+      }
+    },
+    "/api/users/{id}": {
+      "get": {
+        "tags": ["Users"],
+        "summary": "Detail data pengguna berdasarkan ID",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Detail profil pengguna" },
+          "404": { "description": "Pengguna tidak ditemukan" }
+        }
+      },
+      "put": {
+        "tags": ["Users"],
+        "summary": "Perbarui data pengguna (Owner / Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": { "type": "string" },
+                  "role": { "type": "string", "enum": ["job_seeker", "recruiter"] }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": { "description": "Data berhasil diperbarui" },
+          "403": { "description": "Tidak diizinkan mengubah akun orang lain" }
+        }
+      },
+      "delete": {
+        "tags": ["Users"],
+        "summary": "Hapus akun pengguna (Owner / Admin)",
+        "security": [{ "BearerAuth": [] }],
+        "parameters": [
+          { "name": "id", "in": "path", "required": true, "schema": { "type": "integer" } }
+        ],
+        "responses": {
+          "200": { "description": "Pengguna berhasil dihapus" },
+          "403": { "description": "Tidak diizinkan menghapus akun orang lain" }
+        }
+      }
+    }
+  },
+  "components": {
+    "securitySchemes": {
+      "BearerAuth": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "JWT",
+        "description": "Masukkan JWT token Anda. Contoh: `eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...`"
+      }
+    }
+  }
+}

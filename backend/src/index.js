@@ -1,3 +1,4 @@
+const { mountSwagger } = require('./docs/swagger');
 const express = require('express');
 const cors = require('cors');
 const path = require('path');
@@ -57,6 +58,9 @@ app.get('/api/health', (req, res) => {
   });
 });
 
+// Mount Swagger OpenAPI Documentation & Interactive UI
+mountSwagger(app);
+
 app.use('/api/auth', authRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/jobs', jobRoutes);
@@ -74,6 +78,7 @@ app.use(errorHandler);
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`Server backend berjalan di http://localhost:${PORT} (0.0.0.0:${PORT})`);
   console.log(`API Jobs: http://localhost:${PORT}/api/jobs`);
+  console.log(`Swagger Docs: http://localhost:${PORT}/api-docs`);
   console.log(`Health check: http://localhost:${PORT}/api/health`);
 });
 
