@@ -1,163 +1,162 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation, Link } from 'react-router-dom';
-import { LogIn, Mail, Lock, AlertCircle, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function LoginPage({ showToast }) {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [error, setError] = useState(null);
-  const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const { login } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { login, isLoggedIn, isRecruiter } = useAuth();
 
-  const redirectPath = location.state?.from?.pathname || '/jobs';
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+
+  React.useEffect(() => {
+    if (isLoggedIn) {
+      const destination = location.state?.from?.pathname || (isRecruiter ? '/dashboard' : '/opportunities?tab=jobs');
+      navigate(destination, { replace: true });
+    }
+  }, [isLoggedIn, isRecruiter, navigate, location]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setErrorMessage(null);
 
-    // Validation
-    if (!email.trim() || !password.trim()) {
-      setError('Email dan password wajib diisi.');
+    if (!email || !email.trim()) {
+      setErrorMessage('Email address is required.');
       return;
     }
 
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Password is required.');
+      return;
+    }
+
+    if (password.length < 6) {
+      setErrorMessage('Password must be at least 6 characters.');
+      return;
+    }
+
+    setIsSubmitting(true);
     try {
-      setIsSubmitting(true);
       const res = await login(email.trim(), password);
-      const userRole = res.data?.user?.role;
-
       if (showToast) {
-        showToast(`Selamat datang kembali, ${res.data?.user?.name || 'Pengguna'}!`);
+        showToast('Signed in successfully! Welcome back.');
       }
-
-      // Redirect recruiter to dashboard, job seeker to /jobs or requested path
-      if (userRole === 'recruiter') {
-        navigate('/dashboard');
-      } else {
-        navigate(redirectPath === '/login' ? '/jobs' : redirectPath);
-      }
+      const userRole = res.data?.user?.role;
+      const redirectPath = location.state?.from?.pathname || (userRole === 'recruiter' ? '/dashboard' : '/opportunities?tab=jobs');
+      navigate(redirectPath, { replace: true });
     } catch (err) {
-      setError(err.message || 'Gagal masuk. Periksa kembali email dan password Anda.');
+      setErrorMessage(err.message || 'Incorrect email or password.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-[80vh] flex items-center justify-center px-4 py-12 font-mono text-xs">
-      <div className="w-full max-w-md bg-[#F9F8F6] border border-[#D9CFC7] shadow-xl p-6 sm:p-8 space-y-6">
-        {/* Header */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-[#6b5c47] text-[10px] uppercase tracking-widest font-semibold">
-            <ShieldCheck size={14} />
-            <span>Autentikasi Pengguna</span>
-          </div>
-          <h2 className="font-heading text-2xl font-bold text-[#1c1917] tracking-tight">
-            Masuk ke Akun
-          </h2>
-          <p className="font-serif italic text-xs text-[#57534e]">
-            Akses riwayat lamaran Anda atau kelola kandidat lowongan.
+    <div className="w-full bg-[#faf9f7] min-h-[calc(100vh-140px)] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-mono">
+      <div className="max-w-md w-full mx-auto space-y-6">
+
+        <div className="text-center space-y-2">
+          <span className="text-[10px] font-bold text-[#78716c] uppercase tracking-widest block">
+            ACCOUNT ACCESS
+          </span>
+          <h1 className="font-heading text-3xl font-bold text-[#1c1917] tracking-tight">
+            Sign In to Your Account
+          </h1>
+          <p className="text-xs text-[#57534e]">
+            Access job openings, track your applications, or manage candidate talent.
           </p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="p-3 bg-[#ffdad6]/40 border border-[#ba1a1a]/40 text-[#ba1a1a] flex items-start gap-2 text-[11px] animate-in fade-in">
-            <AlertCircle size={14} className="shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
-
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1c1917] mb-1">
-              Email Perusahaan / Kandidat
-            </label>
-            <div className="relative">
-              <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
-              <input
-                type="email"
-                required
-                placeholder="nama@domain.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="fm-input w-full pl-9"
-              />
+        <div className="bg-[#F9F8F6] border border-[#D9CFC7] p-6 sm:p-8 shadow-sm">
+          {errorMessage && (
+            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
             </div>
-          </div>
+          )}
 
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="text-[10px] font-bold uppercase tracking-wider text-[#1c1917]">
-                Kata Sandi
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1c1917] mb-1.5">
+                Email Address
               </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#78716c]">
+                  <Mail size={14} />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  className="w-full pl-9 pr-3 py-2 bg-[#EFE9E3] border border-[#D9CFC7] focus:border-[#1c1917] focus:bg-[#FAF9F7] text-xs outline-none transition-colors"
+                />
+              </div>
             </div>
-            <div className="relative">
-              <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="fm-input w-full pl-9"
-              />
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1c1917] mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#78716c]">
+                  <Lock size={14} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  autoComplete="current-password"
+                  className="w-full pl-9 pr-10 py-2 bg-[#EFE9E3] border border-[#D9CFC7] focus:border-[#1c1917] focus:bg-[#FAF9F7] text-xs outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#78716c] hover:text-[#1c1917]"
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
             </div>
-          </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full fm-btn fm-btn-primary py-2.5 flex items-center justify-center gap-2 text-xs"
-          >
-            <LogIn size={14} />
-            <span>{isSubmitting ? 'Memproses...' : 'Masuk ke Platform'}</span>
-          </button>
-        </form>
-
-        {/* Quick Demo Credentials */}
-        <div className="pt-4 border-t border-[#D9CFC7]/60 space-y-2">
-          <span className="text-[10px] text-[#78716c] uppercase tracking-wider font-semibold block">
-            Akun Percobaan (1-Klik Isi):
-          </span>
-          <div className="grid grid-cols-2 gap-2 text-[11px]">
-            <button
-              type="button"
-              onClick={() => {
-                setEmail('budi@example.com');
-                setPassword('password123');
-              }}
-              className="p-2 border border-[#D9CFC7] bg-[#EFE9E3] hover:border-[#1c1917] text-left text-[#1c1917]"
-            >
-              <div className="font-bold">Job Seeker</div>
-              <div className="text-[10px] text-[#78716c] truncate">budi@example.com</div>
-            </button>
 
             <button
-              type="button"
-              onClick={() => {
-                setEmail('recruiters@example.com');
-                setPassword('password123');
-              }}
-              className="p-2 border border-[#D9CFC7] bg-[#EFE9E3] hover:border-[#1c1917] text-left text-[#1c1917]"
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full mt-2 py-2.5 bg-[#1c1917] hover:bg-[#C9B59C] hover:text-[#1c1917] text-[#F9F8F6] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50"
             >
-              <div className="font-bold">Recruiter</div>
-              <div className="text-[10px] text-[#78716c] truncate">recruiters@example.com</div>
+              {isSubmitting ? (
+                <span>Signing in...</span>
+              ) : (
+                <>
+                  <span>Sign In</span>
+                  <ArrowRight size={14} />
+                </>
+              )}
             </button>
-          </div>
-        </div>
+          </form>
 
-        {/* Footer Link */}
-        <div className="text-center pt-2 text-[11px] text-[#57534e]">
-          Belum memiliki akun?{' '}
-          <Link to="/register" className="font-bold text-[#1c1917] hover:underline inline-flex items-center gap-0.5">
-            Daftar Sekarang <ArrowRight size={11} />
-          </Link>
+          <div className="mt-6 pt-5 border-t border-[#D9CFC7] text-center text-xs text-[#57534e]">
+            <span>Don't have an account yet? </span>
+            <Link
+              to="/register"
+              className="font-bold text-[#1c1917] hover:underline underline-offset-4"
+            >
+              Sign up here
+            </Link>
+          </div>
         </div>
       </div>
     </div>

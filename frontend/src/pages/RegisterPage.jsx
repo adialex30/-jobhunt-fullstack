@@ -1,191 +1,257 @@
 import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
-import { UserPlus, Mail, Lock, User, Briefcase, AlertCircle, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { User, Mail, Lock, Eye, EyeOff, ArrowRight, AlertCircle, CheckCircle2, Briefcase, Building } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 
 export default function RegisterPage({ showToast }) {
+  const navigate = useNavigate();
+  const { register, isLoggedIn } = useAuth();
+
+  const [role, setRole] = useState('job_seeker');
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [role, setRole] = useState('job_seeker');
-  const [error, setError] = useState(null);
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [errorMessage, setErrorMessage] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
 
-  const { register } = useAuth();
-  const navigate = useNavigate();
+  React.useEffect(() => {
+    if (isLoggedIn) {
+      navigate('/opportunities?tab=jobs', { replace: true });
+    }
+  }, [isLoggedIn, navigate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setError(null);
+    setErrorMessage(null);
+    setSuccessMessage(null);
 
-    if (!name.trim() || !email.trim() || !password.trim()) {
-      setError('Semua field wajib diisi.');
+    if (!name || !name.trim()) {
+      setErrorMessage('Full name is required.');
+      return;
+    }
+
+    if (!email || !email.trim()) {
+      setErrorMessage('Email address is required.');
+      return;
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email.trim())) {
+      setErrorMessage('Please enter a valid email address.');
+      return;
+    }
+
+    if (!password) {
+      setErrorMessage('Password is required.');
       return;
     }
 
     if (password.length < 6) {
-      setError('Kata sandi minimal harus 6 karakter.');
+      setErrorMessage('Password must be at least 6 characters.');
       return;
     }
 
-    try {
-      setIsSubmitting(true);
-      await register({
-        name: name.trim(),
-        email: email.trim(),
-        password,
-        role
-      });
+    if (password !== confirmPassword) {
+      setErrorMessage('Passwords do not match.');
+      return;
+    }
 
+    setIsSubmitting(true);
+    try {
+      await register(name.trim(), email.trim(), password, role);
+      setSuccessMessage('Account created successfully! Please sign in with your new account.');
       if (showToast) {
-        showToast('Registrasi berhasil! Silakan masuk dengan akun baru Anda.');
+        showToast('Registration successful! Please sign in.');
       }
-      navigate('/login');
+      setTimeout(() => {
+        navigate('/login');
+      }, 1500);
     } catch (err) {
-      setError(err.message || 'Gagal mendaftar. Silakan coba lagi.');
+      setErrorMessage(err.message || 'Registration failed. Please try again.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center px-4 py-12 font-mono text-xs">
-      <div className="w-full max-w-md bg-[#F9F8F6] border border-[#D9CFC7] shadow-xl p-6 sm:p-8 space-y-6">
-        {/* Header */}
-        <div className="space-y-1">
-          <div className="flex items-center gap-1.5 text-[#6b5c47] text-[10px] uppercase tracking-widest font-semibold">
-            <UserPlus size={14} />
-            <span>Pendaftaran Akun Baru</span>
-          </div>
-          <h2 className="font-heading text-2xl font-bold text-[#1c1917] tracking-tight">
-            Buat Akun Anda
-          </h2>
-          <p className="font-serif italic text-xs text-[#57534e]">
-            Pilih peran Anda untuk mulai melamar pekerjaan atau merekrut talenta.
+    <div className="w-full bg-[#faf9f7] min-h-[calc(100vh-140px)] flex flex-col justify-center py-12 px-4 sm:px-6 lg:px-8 font-mono">
+      <div className="max-w-md w-full mx-auto space-y-6">
+
+        <div className="text-center space-y-2">
+          <span className="text-[10px] font-bold text-[#78716c] uppercase tracking-widest block">
+            CREATE ACCOUNT
+          </span>
+          <h1 className="font-heading text-3xl font-bold text-[#1c1917] tracking-tight">
+            Create Your Account
+          </h1>
+          <p className="text-xs text-[#57534e]">
+            Choose your role and join thousands of professional talents & recruiters.
           </p>
         </div>
 
-        {/* Error Alert */}
-        {error && (
-          <div className="p-3 bg-[#ffdad6]/40 border border-[#ba1a1a]/40 text-[#ba1a1a] flex items-start gap-2 text-[11px] animate-in fade-in">
-            <AlertCircle size={14} className="shrink-0 mt-0.5" />
-            <span>{error}</span>
-          </div>
-        )}
+        <div className="bg-[#F9F8F6] border border-[#D9CFC7] p-6 sm:p-8 shadow-sm">
+          {errorMessage && (
+            <div className="mb-5 p-3.5 bg-red-50 border border-red-200 text-red-700 text-xs flex items-start gap-2.5">
+              <AlertCircle size={16} className="shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )}
 
-        {/* Form */}
-        <form onSubmit={handleSubmit} className="space-y-4">
-          {/* Role Selection */}
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1c1917] mb-1.5">
-              Daftar Sebagai Peran:
+          {successMessage && (
+            <div className="mb-5 p-3.5 bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs flex items-start gap-2.5">
+              <CheckCircle2 size={16} className="shrink-0 mt-0.5 text-emerald-600" />
+              <span>{successMessage}</span>
+            </div>
+          )}
+
+          <div className="mb-5">
+            <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1c1917] mb-2">
+              Register As (Role)
             </label>
             <div className="grid grid-cols-2 gap-2">
               <button
                 type="button"
                 onClick={() => setRole('job_seeker')}
-                className={`p-3 border text-left flex flex-col gap-1 transition-all ${
-                  role === 'job_seeker'
-                    ? 'border-[#1c1917] bg-[#EFE9E3] ring-1 ring-[#1c1917]'
-                    : 'border-[#D9CFC7] bg-[#F9F8F6] opacity-70 hover:opacity-100'
-                }`}
+                className={`p-3 border text-left flex flex-col gap-1 transition-all ${role === 'job_seeker'
+                  ? 'border-[#1c1917] bg-[#C9B59C] text-[#1c1917] font-bold'
+                  : 'border-[#D9CFC7] bg-[#EFE9E3] text-[#57534e] hover:border-[#1c1917]'
+                  }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#1c1917]">Job Seeker</span>
-                  {role === 'job_seeker' && <CheckCircle2 size={13} className="text-emerald-700" />}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Briefcase size={14} />
+                  <span>Job Seeker</span>
                 </div>
-                <span className="text-[10px] text-[#57534e] font-sans">
-                  Mencari dan melamar pekerjaan
-                </span>
+                <span className="text-[10px] opacity-80">Looking for a job</span>
               </button>
 
               <button
                 type="button"
                 onClick={() => setRole('recruiter')}
-                className={`p-3 border text-left flex flex-col gap-1 transition-all ${
-                  role === 'recruiter'
-                    ? 'border-[#1c1917] bg-[#EFE9E3] ring-1 ring-[#1c1917]'
-                    : 'border-[#D9CFC7] bg-[#F9F8F6] opacity-70 hover:opacity-100'
-                }`}
+                className={`p-3 border text-left flex flex-col gap-1 transition-all ${role === 'recruiter'
+                  ? 'border-[#1c1917] bg-[#C9B59C] text-[#1c1917] font-bold'
+                  : 'border-[#D9CFC7] bg-[#EFE9E3] text-[#57534e] hover:border-[#1c1917]'
+                  }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-[#1c1917]">Recruiter</span>
-                  {role === 'recruiter' && <CheckCircle2 size={13} className="text-emerald-700" />}
+                <div className="flex items-center gap-1.5 text-xs">
+                  <Building size={14} />
+                  <span>Recruiter</span>
                 </div>
-                <span className="text-[10px] text-[#57534e] font-sans">
-                  Posting lowongan & seleksi pelamar
-                </span>
+                <span className="text-[10px] opacity-80">Hiring tech talent</span>
               </button>
             </div>
           </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1c1917] mb-1">
-              Nama Lengkap
-            </label>
-            <div className="relative">
-              <User size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
-              <input
-                type="text"
-                required
-                placeholder="cth. Budi Pratama"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                className="fm-input w-full pl-9"
-              />
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1c1917] mb-1.5">
+                Full Name
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#78716c]">
+                  <User size={14} />
+                </div>
+                <input
+                  type="text"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="e.g. John Doe"
+                  className="w-full pl-9 pr-3 py-2 bg-[#EFE9E3] border border-[#D9CFC7] focus:border-[#1c1917] focus:bg-[#FAF9F7] text-xs outline-none transition-colors"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1c1917] mb-1">
-              Email
-            </label>
-            <div className="relative">
-              <Mail size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
-              <input
-                type="email"
-                required
-                placeholder="nama@email.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="fm-input w-full pl-9"
-              />
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1c1917] mb-1.5">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#78716c]">
+                  <Mail size={14} />
+                </div>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  placeholder="name@example.com"
+                  autoComplete="email"
+                  className="w-full pl-9 pr-3 py-2 bg-[#EFE9E3] border border-[#D9CFC7] focus:border-[#1c1917] focus:bg-[#FAF9F7] text-xs outline-none transition-colors"
+                />
+              </div>
             </div>
-          </div>
 
-          <div>
-            <label className="block text-[10px] font-bold uppercase tracking-wider text-[#1c1917] mb-1">
-              Kata Sandi (Min. 6 Karakter)
-            </label>
-            <div className="relative">
-              <Lock size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#78716c]" />
-              <input
-                type="password"
-                required
-                placeholder="••••••••"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="fm-input w-full pl-9"
-              />
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1c1917] mb-1.5">
+                Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#78716c]">
+                  <Lock size={14} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  placeholder="At least 6 characters"
+                  autoComplete="new-password"
+                  className="w-full pl-9 pr-10 py-2 bg-[#EFE9E3] border border-[#D9CFC7] focus:border-[#1c1917] focus:bg-[#FAF9F7] text-xs outline-none transition-colors"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-[#78716c] hover:text-[#1c1917]"
+                >
+                  {showPassword ? <EyeOff size={14} /> : <Eye size={14} />}
+                </button>
+              </div>
             </div>
+
+            <div>
+              <label className="block text-[11px] font-bold uppercase tracking-wider text-[#1c1917] mb-1.5">
+                Confirm Password
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-[#78716c]">
+                  <Lock size={14} />
+                </div>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter your password"
+                  autoComplete="new-password"
+                  className="w-full pl-9 pr-3 py-2 bg-[#EFE9E3] border border-[#D9CFC7] focus:border-[#1c1917] focus:bg-[#FAF9F7] text-xs outline-none transition-colors"
+                />
+              </div>
+            </div>
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="w-full mt-2 py-2.5 bg-[#1c1917] hover:bg-[#C9B59C] hover:text-[#1c1917] text-[#F9F8F6] text-xs font-bold uppercase tracking-wider transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+            >
+              {isSubmitting ? (
+                <span>Creating Account...</span>
+              ) : (
+                <>
+                  <span>Create Account</span>
+                  <ArrowRight size={14} />
+                </>
+              )}
+            </button>
+          </form>
+
+          <div className="mt-6 pt-5 border-t border-[#D9CFC7] text-center text-xs text-[#57534e]">
+            <span>Already have an account? </span>
+            <Link
+              to="/login"
+              className="font-bold text-[#1c1917] hover:underline underline-offset-4"
+            >
+              Sign in here
+            </Link>
           </div>
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full fm-btn fm-btn-primary py-2.5 flex items-center justify-center gap-2 text-xs"
-          >
-            <UserPlus size={14} />
-            <span>{isSubmitting ? 'Mendaftarkan...' : 'Selesaikan Pendaftaran'}</span>
-          </button>
-        </form>
-
-        {/* Footer Link */}
-        <div className="text-center pt-2 text-[11px] text-[#57534e]">
-          Sudah memiliki akun?{' '}
-          <Link to="/login" className="font-bold text-[#1c1917] hover:underline inline-flex items-center gap-0.5">
-            Masuk di sini <ArrowRight size={11} />
-          </Link>
         </div>
       </div>
     </div>

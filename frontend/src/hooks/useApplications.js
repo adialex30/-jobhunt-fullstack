@@ -4,104 +4,103 @@ import { applicationService } from '../services/applicationService';
 export function useApplications() {
   const [applications, setApplications] = useState([]);
   const [applicants, setApplicants] = useState([]);
-  const [dashboardStats, setDashboardStats] = useState(null);
+  const [dashboardData, setDashboardData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  // Lamar pekerjaan (Job Seeker)
-  const applyJob = async (jobId, cover_letter) => {
+  const fetchMyApplications = useCallback(async () => {
     setLoading(true);
     setError(null);
     try {
-      const res = await applicationService.applyJob(jobId, { cover_letter });
-      return res;
+      const data = await applicationService.getMyApplications();
+      setApplications(data || []);
+      return data;
     } catch (err) {
-      setError(err.message);
+      console.error('Error fetching my applications:', err);
+      setError(err.message || 'Failed to load applications.');
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  const applyJob = async (jobId, { cover_letter = '' } = {}) => {
+    setLoading(true);
+    setError(null);
+    try {
+      const result = await applicationService.applyJob(jobId, { cover_letter });
+      return result;
+    } catch (err) {
+      console.error('Error submitting application:', err);
+      setError(err.message || 'Failed to submit application.');
       throw err;
     } finally {
       setLoading(false);
     }
   };
 
-  // Ambil riwayat lamaran user login (Job Seeker)
-  const fetchMyApplications = useCallback(async ({ silent = false } = {}) => {
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
+  const fetchJobApplicants = useCallback(async (jobId) => {
+    setLoading(true);
+    setError(null);
     try {
-      const list = await applicationService.getMyApplications();
-      setApplications(list);
-      return list;
+      const data = await applicationService.getJobApplicants(jobId);
+      setApplicants(data || []);
+      return data;
     } catch (err) {
-      if (!silent) setError(err.message);
-      return [];
+      console.error('Error fetching job applicants:', err);
+      setError(err.message || 'Failed to load job applicants.');
+      throw err;
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, []);
 
-  // Ambil daftar pelamar untuk job tertentu (Recruiter)
-  const fetchJobApplicants = useCallback(async (jobId, { silent = false } = {}) => {
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
-    try {
-      const list = await applicationService.getJobApplicants(jobId);
-      setApplicants(list);
-      return list;
-    } catch (err) {
-      if (!silent) setError(err.message);
-      return [];
-    } finally {
-      if (!silent) setLoading(false);
-    }
-  }, []);
-
-  // Update status lamaran (Recruiter)
   const updateStatus = async (applicationId, status) => {
+    setError(null);
     try {
-      const res = await applicationService.updateStatus(applicationId, status);
-      // Update local state
+      const result = await applicationService.updateStatus(applicationId, status);
       setApplicants((prev) =>
         prev.map((app) => (app.id === applicationId ? { ...app, status } : app))
       );
-      return res;
+      setApplications((prev) =>
+        prev.map((app) => (app.id === applicationId ? { ...app, status } : app))
+      );
+      return result;
     } catch (err) {
-      setError(err.message);
+      console.error('Error updating application status:', err);
+      setError(err.message || 'Failed to update application status.');
       throw err;
     }
   };
 
-  // Ambil ringkasan statistik recruiter (Recruiter)
-  const fetchDashboardStats = useCallback(async ({ silent = false } = {}) => {
-    if (!silent) {
-      setLoading(true);
-      setError(null);
-    }
+  const fetchRecruiterDashboard = useCallback(async () => {
+    setLoading(true);
+    setError(null);
     try {
-      const stats = await applicationService.getRecruiterDashboard();
-      setDashboardStats(stats);
-      return stats;
+      const data = await applicationService.getRecruiterDashboard();
+      setDashboardData(data);
+      return data;
     } catch (err) {
-      if (!silent) setError(err.message);
-      return null;
+      console.error('Error fetching recruiter dashboard:', err);
+      setError(err.message || 'Failed to load recruiter dashboard.');
+      throw err;
     } finally {
-      if (!silent) setLoading(false);
+      setLoading(false);
     }
   }, []);
 
   return {
     applications,
     applicants,
-    dashboardStats,
+    dashboardData,
     loading,
     error,
-    applyJob,
     fetchMyApplications,
+    applyJob,
     fetchJobApplicants,
     updateStatus,
-    fetchDashboardStats
+    fetchRecruiterDashboard
   };
 }
+
+export default useApplications;

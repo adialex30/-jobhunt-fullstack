@@ -1,27 +1,28 @@
 import React, { useState } from 'react';
-import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
+import { Routes, Route, Navigate, useNavigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './context/AuthContext';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import ProtectedRoute from './components/ProtectedRoute';
+
 import HomePage from './pages/HomePage';
-import JobsCatalogPage from './pages/JobsCatalogPage';
 import JobDetailPage from './pages/JobDetailPage';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
-import ApplicationsPage from './pages/ApplicationsPage';
+import OpportunitiesPage from './pages/OpportunitiesPage';
+
+import ApplicationsHistoryPage from './pages/ApplicationsHistoryPage';
 import ProfilePage from './pages/ProfilePage';
+
 import RecruiterDashboardPage from './pages/RecruiterDashboardPage';
-import CreateJobPage from './pages/CreateJobPage';
-import EditJobPage from './pages/EditJobPage';
+import JobCreatePage from './pages/JobCreatePage';
+import JobEditPage from './pages/JobEditPage';
 import JobApplicantsPage from './pages/JobApplicantsPage';
-import ProtectedRoute from './components/ProtectedRoute';
-import { AuthProvider } from './context/AuthContext';
-import PostJobModal from './components/PostJobModal';
-import RecruiterJobsModal from './components/RecruiterJobsModal';
+
 import AuraApplyModal from './components/AuraApplyModal';
 import AuraBookmarksModal from './components/AuraBookmarksModal';
-import { AURA_JOBS } from './data/auraJobsData';
+import { jobService } from './services/jobService';
 
-// Class Error Boundary to prevent blank screen crashes
 class ErrorBoundary extends React.Component {
   constructor(props) {
     super(props);
@@ -38,9 +39,9 @@ class ErrorBoundary extends React.Component {
       return (
         <div className="min-h-screen bg-[#faf9f7] flex flex-col items-center justify-center p-8 font-mono text-[#1c1917] text-center">
           <div className="max-w-md p-6 bg-[#F9F8F6] border border-[#D9CFC7] shadow-lg">
-            <h2 className="font-heading text-xl font-bold mb-2 text-[#ba1a1a]">Terjadi Kendala Tampilan</h2>
+            <h2 className="font-heading text-xl font-bold mb-2 text-[#ba1a1a]">Display Error Occurred</h2>
             <p className="text-xs text-[#57534e] mb-4">
-              {this.state.error?.message || 'Terjadi kesalahan runtime tak terduga.'}
+              {this.state.error?.message || 'An unexpected runtime error occurred.'}
             </p>
             <button
               onClick={() => {
@@ -49,7 +50,7 @@ class ErrorBoundary extends React.Component {
               }}
               className="px-4 py-2 bg-[#1c1917] text-[#F9F8F6] text-xs font-mono uppercase tracking-wider"
             >
-              Muat Ulang Halaman
+              Reload Page
             </button>
           </div>
         </div>
@@ -59,13 +60,31 @@ class ErrorBoundary extends React.Component {
   }
 }
 
-function MainApp() {
-  const [savedJobIds, setSavedJobIds] = useState(['1', '2']);
+function MainAppContent() {
+  const navigate = useNavigate();
+  const { isLoggedIn, isRecruiter, isJobSeeker } = useAuth();
+
+  const [savedJobIds, setSavedJobIds] = useState(() => {
+    try {
+      const stored = localStorage.getItem('saved_job_ids');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  const [dbJobs, setDbJobs] = useState([]);
+
+  React.useEffect(() => {
+    jobService.getJobs({ limit: 50 })
+      .then((res) => {
+        if (res?.data?.jobs) setDbJobs(res.data.jobs);
+      })
+      .catch(() => { });
+  }, []);
+
   const [isSavedModalOpen, setIsSavedModalOpen] = useState(false);
   const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
-  const [isPostModalOpen, setIsPostModalOpen] = useState(false);
-  const [isRecruiterModalOpen, setIsRecruiterModalOpen] = useState(false);
-  const [jobToEdit, setJobToEdit] = useState(null);
   const [selectedJobToApply, setSelectedJobToApply] = useState(null);
   const [toastMessage, setToastMessage] = useState(null);
 
@@ -74,48 +93,75 @@ function MainApp() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleOpenCreateJob = () => {
-    setJobToEdit(null);
-    setIsPostModalOpen(true);
-  };
-
-  const handleOpenEditJob = (job) => {
-    setJobToEdit(job);
-    setIsPostModalOpen(true);
-  };
-
   const handleToggleBookmark = (e, jobId) => {
     if (e && e.stopPropagation) e.stopPropagation();
     const strId = String(jobId);
     setSavedJobIds((prev) => {
       const exists = prev.includes(strId);
+      let updated;
       if (exists) {
-        showToast('Lowongan dihapus dari daftar tersimpan.');
-        return prev.filter((id) => id !== strId);
+        showToast('Job removed from saved list.');
+        updated = prev.filter((id) => id !== strId);
       } else {
-        showToast('Lowongan disimpan ke arsip tersimpan Anda.');
-        return [...prev, strId];
+        showToast('Job saved to your bookmarks.');
+        updated = [...prev, strId];
       }
+      try {
+        localStorage.setItem('saved_job_ids', JSON.stringify(updated));
+      } catch (e) {
+
+      }
+      return updated;
     });
   };
 
+  const handleApplyClick = (job) => {
+    if (!isLoggedIn) {
+      showToast('Please log in first to apply for jobs.');
+      navigate('/login');
+      return;
+    }
+
+    if (isRecruiter) {
+      showToast('Recruiter accounts cannot apply for jobs. Please use a Job Seeker account.');
+      return;
+    }
+
+    setSelectedJobToApply(job);
+    setIsApplyModalOpen(true);
+  };
+
+  const handleOpenPostJob = () => {
+    if (!isLoggedIn) {
+      showToast('Please log in as a Recruiter to post a job.');
+      navigate('/login');
+      return;
+    }
+    if (!isRecruiter) {
+      showToast('Only Recruiter accounts can post jobs.');
+      navigate('/opportunities');
+      return;
+    }
+    navigate('/jobs/create');
+  };
+
   const savedJobsObjects = savedJobIds.map((id) => {
-    const existing = AURA_JOBS.find((j) => j.id === id);
+    const existing = dbJobs.find((j) => String(j.id) === String(id));
     if (existing) return existing;
     return {
       id,
-      title: `Lowongan Pekerjaan #${id}`,
-      company: 'Verified Partner Studio',
-      location: 'Remote / Jakarta',
-      package: 'Kompensasi Kompetitif',
-      type: 'Full-Time',
-      tags: ['Engineering', 'Design']
+      title: `Job Opening #${id}`,
+      company: 'Company',
+      location: 'Remote',
+      package: 'Competitive Salary',
+      type: 'Full-time',
+      tags: ['Engineering']
     };
   });
 
   return (
     <div className="bg-[#faf9f7] text-[#1a1c1b] min-h-screen flex flex-col font-mono selection:bg-[#f2dcc2] selection:text-[#1c1917]">
-      {/* Toast Feedback Notification */}
+
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 bg-[#1c1917] text-[#F9F8F6] px-5 py-3 rounded-none shadow-2xl border-l-4 border-[#C9B59C] font-mono text-xs flex items-center gap-3 animate-in slide-in-from-bottom-5 duration-200">
           <span className="w-2 h-2 rounded-full bg-[#C9B59C] animate-ping" />
@@ -123,50 +169,31 @@ function MainApp() {
         </div>
       )}
 
-      {/* Sticky Header */}
       <Header
         savedJobsCount={savedJobIds.length}
         onOpenSaved={() => setIsSavedModalOpen(true)}
         showToast={showToast}
       />
 
-      {/* Application Main Router Area */}
       <main className="w-full bg-[#faf9f7] min-h-[calc(100vh-140px)] flex flex-col flex-1">
         <Routes>
-          {/* ================= PUBLIC ROUTES ================= */}
-          {/* 1. / (Home) */}
+
           <Route
             path="/"
             element={
               <HomePage
-                onOpenPostModal={handleOpenCreateJob}
+                onOpenPostModal={handleOpenPostJob}
                 showToast={showToast}
               />
             }
           />
 
-          {/* 2. /jobs (Katalog Lowongan) */}
-          <Route
-            path="/jobs"
-            element={
-              <JobsCatalogPage
-                savedJobIds={savedJobIds}
-                onToggleBookmark={handleToggleBookmark}
-                showToast={showToast}
-              />
-            }
-          />
-
-          {/* 3. /jobs/:id (Detail Lowongan) */}
           <Route
             path="/jobs/:id"
             element={
               <JobDetailPage
-                onApply={(job) => {
-                  setSelectedJobToApply(job);
-                  setIsApplyModalOpen(true);
-                }}
-                onEditJob={handleOpenEditJob}
+                onApply={handleApplyClick}
+                onEditJob={(job) => navigate(`/jobs/${job.id}/edit`)}
                 savedJobIds={savedJobIds}
                 onToggleBookmark={handleToggleBookmark}
                 showToast={showToast}
@@ -174,30 +201,18 @@ function MainApp() {
             }
           />
 
-          {/* 4. /login */}
-          <Route
-            path="/login"
-            element={<LoginPage showToast={showToast} />}
-          />
+          <Route path="/login" element={<LoginPage showToast={showToast} />} />
+          <Route path="/register" element={<RegisterPage showToast={showToast} />} />
 
-          {/* 5. /register */}
-          <Route
-            path="/register"
-            element={<RegisterPage showToast={showToast} />}
-          />
-
-          {/* ================= JOB SEEKER PROTECTED ROUTES ================= */}
-          {/* 1. /applications (Riwayat Lamaran) */}
           <Route
             path="/applications"
             element={
               <ProtectedRoute allowedRoles={['job_seeker']}>
-                <ApplicationsPage showToast={showToast} />
+                <ApplicationsHistoryPage showToast={showToast} />
               </ProtectedRoute>
             }
           />
 
-          {/* 2. /profile (Profil User) */}
           <Route
             path="/profile"
             element={
@@ -207,8 +222,6 @@ function MainApp() {
             }
           />
 
-          {/* ================= RECRUITER PROTECTED ROUTES ================= */}
-          {/* 1. /dashboard (Dashboard Recruiter) */}
           <Route
             path="/dashboard"
             element={
@@ -218,27 +231,24 @@ function MainApp() {
             }
           />
 
-          {/* 2. /jobs/create (Form Posting Lowongan Baru) */}
           <Route
             path="/jobs/create"
             element={
               <ProtectedRoute allowedRoles={['recruiter']}>
-                <CreateJobPage showToast={showToast} />
+                <JobCreatePage showToast={showToast} />
               </ProtectedRoute>
             }
           />
 
-          {/* 3. /jobs/:id/edit (Form Edit Lowongan) */}
           <Route
             path="/jobs/:id/edit"
             element={
               <ProtectedRoute allowedRoles={['recruiter']}>
-                <EditJobPage showToast={showToast} />
+                <JobEditPage showToast={showToast} />
               </ProtectedRoute>
             }
           />
 
-          {/* 4. /jobs/:id/applicants (Tabel Pelamar & Update Status) */}
           <Route
             path="/jobs/:id/applicants"
             element={
@@ -248,56 +258,47 @@ function MainApp() {
             }
           />
 
-          {/* Fallback redirect */}
+          <Route
+            path="/opportunities"
+            element={
+              <OpportunitiesPage
+                onApply={handleApplyClick}
+                onOpenPostModal={handleOpenPostJob}
+                savedJobIds={savedJobIds}
+                onToggleBookmark={handleToggleBookmark}
+                showToast={showToast}
+              />
+            }
+          />
+
+          <Route
+            path="/candidates"
+            element={<Navigate to="/opportunities?tab=candidates" replace />}
+          />
+
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
 
-      {/* Footer */}
       <Footer showToast={showToast} />
 
-      {/* Modal Pasang / Edit Lowongan (Quick modal option) */}
-      <PostJobModal
-        isOpen={isPostModalOpen}
-        jobToEdit={jobToEdit}
-        onClose={() => {
-          setIsPostModalOpen(false);
-          setJobToEdit(null);
-        }}
-        onJobCreated={(newJob) => {
-          showToast(`Lowongan '${newJob?.title || 'Baru'}' berhasil dipublikasikan!`);
-        }}
-        onJobUpdated={(updatedJob) => {
-          showToast(`Lowongan '${updatedJob?.title || 'Pekerjaan'}' berhasil diperbarui!`);
-        }}
-        showToast={showToast}
-      />
-
-      {/* Modal Kelola Lowongan Recruiter */}
-      <RecruiterJobsModal
-        isOpen={isRecruiterModalOpen}
-        onClose={() => setIsRecruiterModalOpen(false)}
-        onOpenCreateJob={handleOpenCreateJob}
-        onEditJob={handleOpenEditJob}
-        showToast={showToast}
-      />
-
-      {/* Modal Lamar Lowongan */}
       {isApplyModalOpen && (
         <AuraApplyModal
-          job={selectedJobToApply || { title: 'Posisi Karir', company: 'Perusahaan Terverifikasi' }}
+          job={selectedJobToApply}
           onClose={() => setIsApplyModalOpen(false)}
-          onConfirm={(company) => showToast(`Lamaran berhasil dikirim ke ${company}!`)}
+          onConfirm={(company) => showToast(`Application successfully sent to ${company}!`)}
         />
       )}
 
-      {/* Modal Saved Bookmarks */}
       {isSavedModalOpen && (
         <AuraBookmarksModal
           savedJobs={savedJobsObjects}
           onClose={() => setIsSavedModalOpen(false)}
-          onSelectJob={() => setIsSavedModalOpen(false)}
-          onRemoveBookmark={(id) => handleToggleBookmark({ stopPropagation: () => {} }, id)}
+          onSelectJob={(j) => {
+            setIsSavedModalOpen(false);
+            navigate(`/jobs/${j.id}`);
+          }}
+          onRemoveBookmark={(id) => handleToggleBookmark({ stopPropagation: () => { } }, id)}
         />
       )}
     </div>
@@ -308,7 +309,7 @@ export default function App() {
   return (
     <ErrorBoundary>
       <AuthProvider>
-        <MainApp />
+        <MainAppContent />
       </AuthProvider>
     </ErrorBoundary>
   );

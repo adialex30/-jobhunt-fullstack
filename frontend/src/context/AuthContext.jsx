@@ -1,68 +1,109 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { authService } from '../services/authService';
+import { api, getToken, setToken, removeToken } from '../services/api';
 
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(() => authService.getCurrentUser());
-  const [token, setToken] = useState(() => authService.getToken());
+  const [user, setUser] = useState(null);
+  const [token, setTokenState] = useState(getToken());
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    async function verifyUser() {
-      if (token) {
-        try {
-          const profile = await authService.getMe();
-          if (profile) {
-            setUser(profile);
+    let isMounted = true;
+
+    const initAuth = async () => {
+      const storedToken = getToken();
+      if (!storedToken) {
+        if (isMounted) {
+          setUser(null);
+          setLoading(false);
+        }
+        return;
+      }
+
+      try {
+        const profileData = await api.getMe();
+        if (isMounted) {
+          if (profileData && profileData.user) {
+            setUser(profileData.user);
+            setTokenState(storedToken);
           } else {
             setUser(null);
-            setToken(null);
+            removeToken();
+            setTokenState(null);
           }
-        } catch {
         }
+      } catch (err) {
+        if (isMounted) {
+          console.error('Failed to restore session:', err);
+          setUser(null);
+          removeToken();
+          setTokenState(null);
+        }
+      } finally {
+        if (isMounted) setLoading(false);
       }
-      setLoading(false);
-    }
-    verifyUser();
-  }, [token]);
+    };
+
+    initAuth();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
 
   const login = async (email, password) => {
-    const res = await authService.login({ email, password });
-    if (res.data?.token) {
-      setToken(res.data.token);
-      setUser(res.data.user);
+    setError(null);
+    try {
+      const res = await api.login(email, password);
+      const authenticatedUser = res.data?.user;
+      const authToken = res.data?.token;
+
+      if (authToken) {
+        setToken(authToken);
+        setTokenState(authToken);
+      }
+      setUser(authenticatedUser);
+      return res;
+    } catch (err) {
+      setError(err.message || 'Login failed.');
+      throw err;
     }
-    return res;
   };
 
-  const register = async ({ name, email, password, role }) => {
-    return await authService.register({ name, email, password, role });
+  const register = async (name, email, password, role) => {
+    setError(null);
+    try {
+      const res = await api.register(name, email, password, role);
+      return res;
+    } catch (err) {
+      setError(err.message || 'Registration failed.');
+      throw err;
+    }
   };
 
   const logout = () => {
-    authService.logout();
+    api.logout();
     setUser(null);
-    setToken(null);
+    setTokenState(null);
   };
 
   const value = {
     user,
     token,
-    isLoggedIn: Boolean(user && token),
-    isJobSeeker: user?.role === 'job_seeker',
-    isRecruiter: user?.role === 'recruiter',
     loading,
+    error,
+    isLoggedIn: Boolean(user),
+    isRecruiter: user?.role === 'recruiter',
+    isJobSeeker: user?.role === 'job_seeker',
     login,
     register,
-    logout
+    logout,
+    setUser
   };
 
-  return (
-    <AuthContext.Provider value={value}>
-      {children}
-    </AuthContext.Provider>
-  );
+  return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 export function useAuth() {

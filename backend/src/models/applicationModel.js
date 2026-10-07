@@ -1,7 +1,5 @@
 const db = require('../config/db');
-
 const ApplicationModel = {
-  // Create new application
   async create({ job_id, applicant_id, cover_letter }) {
     const query = `
       INSERT INTO applications (job_id, applicant_id, cover_letter, status)
@@ -14,8 +12,6 @@ const ApplicationModel = {
     ]);
     return result.insertId;
   },
-
-  // Check if applicant has already applied to this job
   async hasAlreadyApplied(job_id, applicant_id) {
     const query = `
       SELECT id FROM applications
@@ -25,8 +21,6 @@ const ApplicationModel = {
     const [rows] = await db.query(query, [job_id, applicant_id]);
     return rows.length > 0;
   },
-
-  // Find single application by id with job and applicant info
   async findById(id) {
     const query = `
       SELECT 
@@ -53,8 +47,6 @@ const ApplicationModel = {
     const [rows] = await db.query(query, [id]);
     return rows.length > 0 ? rows[0] : null;
   },
-
-  // Get applications for a job seeker (GET /api/applications/mine)
   async findByApplicantId(applicant_id) {
     const query = `
       SELECT 
@@ -82,8 +74,6 @@ const ApplicationModel = {
     const [rows] = await db.query(query, [applicant_id]);
     return rows;
   },
-
-  // Get applicants for a specific job (GET /api/jobs/:id/applicants)
   async findByJobId(job_id) {
     const query = `
       SELECT 
@@ -104,8 +94,6 @@ const ApplicationModel = {
     const [rows] = await db.query(query, [job_id]);
     return rows;
   },
-
-  // Update application status (PUT /api/applications/:id)
   async updateStatus(id, status) {
     const query = `
       UPDATE applications
@@ -115,8 +103,6 @@ const ApplicationModel = {
     const [result] = await db.query(query, [status, id]);
     return result.affectedRows > 0;
   },
-
-  // Recruiter Dashboard statistics (GET /api/applications/dashboard)
   async getRecruiterSummary(recruiter_id) {
     const jobsCountQuery = `
       SELECT COUNT(*) as total_jobs
@@ -124,7 +110,6 @@ const ApplicationModel = {
       WHERE recruiter_id = ?
     `;
     const [jobsCount] = await db.query(jobsCountQuery, [recruiter_id]);
-
     const appsQuery = `
       SELECT 
         COUNT(a.id) as total_applicants,
@@ -136,7 +121,6 @@ const ApplicationModel = {
       WHERE j.recruiter_id = ?
     `;
     const [appsStats] = await db.query(appsQuery, [recruiter_id]);
-
     return {
       total_jobs_posted: jobsCount[0].total_jobs || 0,
       total_applicants: Number(appsStats[0].total_applicants || 0),
@@ -146,5 +130,4 @@ const ApplicationModel = {
     };
   }
 };
-
 module.exports = ApplicationModel;

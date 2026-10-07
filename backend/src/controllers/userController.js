@@ -6,7 +6,8 @@ const ALLOWED_USER_ROLES = ['job_seeker', 'recruiter'];
 const UserController = {
   async getAllUsers(req, res) {
     try {
-      const userList = await UserModel.findAll();
+      const { role } = req.query;
+      const userList = await UserModel.findAll(role ? { role } : {});
       return sendSuccess(res, {
         statusCode: 200,
         message: 'Daftar semua pengguna berhasil dimuat.',

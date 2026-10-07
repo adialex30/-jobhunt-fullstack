@@ -1,18 +1,13 @@
 const jwt = require('jsonwebtoken');
-const { sendError } = require('../utils/apiResponse');
-
 const verifyToken = (req, res, next) => {
   const authorizationHeader = req.headers['authorization'];
-
   if (!authorizationHeader || !authorizationHeader.startsWith('Bearer ')) {
-    return sendError(res, {
-      statusCode: 401,
+    return res.status(401).json({
+      status: 'error',
       message: 'Akses ditolak! Token otentikasi tidak ditemukan.'
     });
   }
-
   const bearerToken = authorizationHeader.split(' ')[1];
-
   try {
     const decodedTokenPayload = jwt.verify(
       bearerToken,
@@ -21,25 +16,23 @@ const verifyToken = (req, res, next) => {
     req.user = decodedTokenPayload;
     next();
   } catch (verificationError) {
-    return sendError(res, {
-      statusCode: 403,
+    return res.status(403).json({
+      status: 'error',
       message: 'Token tidak valid atau sudah kedaluwarsa.'
     });
   }
 };
-
 const authorizeRoles = (...allowedRoles) => {
   return (req, res, next) => {
     if (!req.user || !allowedRoles.includes(req.user.role)) {
-      return sendError(res, {
-        statusCode: 403,
+      return res.status(403).json({
+        status: 'error',
         message: 'Akses terlarang! Anda tidak memiliki izin untuk tindakan ini.'
       });
     }
     next();
   };
 };
-
 module.exports = {
   verifyToken,
   authorizeRoles
