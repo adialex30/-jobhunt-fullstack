@@ -70,7 +70,7 @@ Untuk memudahkan pengujian langsung tanpa perlu registrasi manual dari awal, And
 - **Akses:** Menjelajahi lowongan, melamar pekerjaan, dan memantau riwayat lamaran.
 
 ### 2. Akun Perekrut (Recruiter)
-- **Email:** `recruiter@jobhunt.bzh`
+- **Email:** `recruiters@example.com`
 - **Password:** `password123`
 - **Peran:** `recruiter`
 - **Akses:** Dashboard recruiter, posting lowongan, mengelola lowongan, mereview pelamar, dan candidate bench.
@@ -133,61 +133,6 @@ cd -jobhunt-fullstack
 3. Buat database baru bernama `jobhunt_db`.
 4. Import file SQL siap pakai yang telah disediakan di dalam folder `backend/database.sql`:
    - Di **phpMyAdmin**: Klik tab **Import** ➜ Pilih file `backend/database.sql` ➜ Klik tombol **Go / Kirim**.
-   - Atau langsung jalankan perintah SQL berikut di query editor:
-
-```sql
-CREATE DATABASE IF NOT EXISTS `jobhunt_db`
-  CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE `jobhunt_db`;
-
--- Tabel Pengguna (users)
-CREATE TABLE IF NOT EXISTS `users` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `name` VARCHAR(255) NOT NULL,
-  `email` VARCHAR(255) NOT NULL UNIQUE,
-  `password` VARCHAR(255) NOT NULL,
-  `role` ENUM('job_seeker', 'recruiter', 'admin') NOT NULL DEFAULT 'job_seeker',
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Tabel Lowongan Pekerjaan (jobs)
-CREATE TABLE IF NOT EXISTS `jobs` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `recruiter_id` INT NOT NULL,
-  `title` VARCHAR(255) NOT NULL,
-  `company` VARCHAR(255) NOT NULL,
-  `location` VARCHAR(255) DEFAULT 'Remote',
-  `type` ENUM('full-time', 'part-time', 'contract', 'internship') NOT NULL DEFAULT 'full-time',
-  `description` TEXT NOT NULL,
-  `requirements` TEXT DEFAULT NULL,
-  `salary_min` DECIMAL(12, 2) DEFAULT NULL,
-  `salary_max` DECIMAL(12, 2) DEFAULT NULL,
-  `is_active` BOOLEAN NOT NULL DEFAULT TRUE,
-  `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`recruiter_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Tabel Lamaran Kerja (applications)
-CREATE TABLE IF NOT EXISTS `applications` (
-  `id` INT AUTO_INCREMENT PRIMARY KEY,
-  `job_id` INT NOT NULL,
-  `applicant_id` INT NOT NULL,
-  `cover_letter` TEXT DEFAULT NULL,
-  `status` ENUM('pending', 'reviewed', 'interview', 'accepted', 'rejected') NOT NULL DEFAULT 'pending',
-  `applied_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (`job_id`) REFERENCES `jobs` (`id`) ON DELETE CASCADE,
-  FOREIGN KEY (`applicant_id`) REFERENCES `users` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
-
--- Akun Demo Awal (Password: password123)
-INSERT INTO `users` (`id`, `name`, `email`, `password`, `role`) VALUES
-(1, 'Budi Santoso', 'budi@example.com', '$2b$10$wN18t8OcmX9X9yLhEw0Eou2m4W2b7A7oEKnV3G6c0wF4E1VpSye2C', 'job_seeker'),
-(2, 'Sarah Jenkins', 'recruiter@jobhunt.bzh', '$2b$10$wN18t8OcmX9X9yLhEw0Eou2m4W2b7A7oEKnV3G6c0wF4E1VpSye2C', 'recruiter')
-ON DUPLICATE KEY UPDATE `id`=`id`;
-```
-
----
 
 ### Langkah 3: Konfigurasi & Menjalankan Backend
 
